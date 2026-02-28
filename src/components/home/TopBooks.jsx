@@ -22,7 +22,7 @@ export default function TopBooks({ books }) {
                 className="absolute -top-1.5 -left-1.5 flex items-center justify-center rounded-full font-bold text-white"
                 style={{
                   width:18, height:18, fontSize:8,
-                  background:'var(--accent)',
+                  background:'var(--accent-hex)',
                   boxShadow:'0 1px 4px rgba(193,59,117,0.4)',
                 }}
               >

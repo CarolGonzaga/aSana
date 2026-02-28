@@ -48,7 +48,7 @@ export default function Chat() {
         {/* Fixed header */}
         <div
           className="flex items-center gap-3 px-0 py-2 flex-shrink-0 border-b"
-          style={{ borderColor:'var(--border)' }}
+          style={{ borderColor:'var(--border-hex)' }}
         >
           <Button
             variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0"
@@ -74,7 +74,7 @@ export default function Chat() {
                 <div
                   className="max-w-[78%] px-4 py-2.5 shadow-sm"
                   style={{
-                    background: isMe ? 'var(--accent)' : 'var(--bg-card)',
+                    background: isMe ? 'var(--accent-hex)' : 'var(--bg-card)',
                     color: isMe ? '#fff' : 'var(--text-main)',
                     borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                   }}
@@ -93,7 +93,7 @@ export default function Chat() {
         {/* Fixed input */}
         <div
           className="flex gap-2 pt-3 flex-shrink-0 border-t"
-          style={{ borderColor:'var(--border)' }}
+          style={{ borderColor:'var(--border-hex)' }}
         >
           <Input
             value={text}
@@ -107,7 +107,7 @@ export default function Chat() {
             size="icon"
             onClick={handleSend}
             className="rounded-xl h-10 w-10 flex-shrink-0 text-white"
-            style={{ background:'var(--accent)' }}
+            style={{ background:'var(--accent-hex)' }}
           >
             <Send size={16} />
           </Button>

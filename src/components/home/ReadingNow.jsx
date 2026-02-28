@@ -30,7 +30,7 @@ export default function ReadingNow({ book, onUpdateProgress }) {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <ProgressBar percent={percent} height={6} />
-              <span className="text-xs font-bold flex-shrink-0" style={{ color:'var(--accent)' }}>
+              <span className="text-xs font-bold flex-shrink-0" style={{ color:'var(--accent-hex)' }}>
                 {percent}%
               </span>
             </div>
@@ -41,7 +41,7 @@ export default function ReadingNow({ book, onUpdateProgress }) {
               size="sm"
               onClick={() => onUpdateProgress(book)}
               className="w-full rounded-xl h-9 font-bold text-white text-xs"
-              style={{ background:'var(--accent)' }}
+              style={{ background:'var(--accent-hex)' }}
             >
               Atualizar progresso
             </Button>

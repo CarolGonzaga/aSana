@@ -15,13 +15,13 @@ function BookDisplay({ book, label, arrow }) {
           className="rounded-full px-2 py-0.5 inline-flex items-center gap-1 mb-1"
           style={{ background:'rgba(193,59,117,0.1)' }}
         >
-          <ArrowIcon size={10} style={{ color:'var(--accent)' }} />
-          <span style={{ fontSize:8, fontWeight:700, color:'var(--accent)' }}>{label}</span>
+          <ArrowIcon size={10} style={{ color:'var(--accent-hex)' }} />
+          <span style={{ fontSize:8, fontWeight:700, color:'var(--accent-hex)' }}>{label}</span>
         </div>
         <h4 className="font-bold leading-tight line-clamp-2" style={{ fontSize:11, color:'var(--text-header)' }}>
           {book.title}
         </h4>
-        <p style={{ fontSize:10, color:'var(--accent)', fontWeight:700, marginTop:2 }}>
+        <p style={{ fontSize:10, color:'var(--accent-hex)', fontWeight:700, marginTop:2 }}>
           {book.total_pages} págs
         </p>
       </div>

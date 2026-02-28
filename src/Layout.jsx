@@ -29,7 +29,7 @@ export default function Layout({ children, currentPageName }) {
           className="fixed bottom-0 left-0 right-0 z-50"
           style={{
             background: 'var(--bg-card)',
-            borderTop: '1px solid var(--border)',
+            borderTop: '1px solid var(--border-hex)',
             height: '64px',
           }}
         >
@@ -44,7 +44,7 @@ export default function Layout({ children, currentPageName }) {
                   style={{
                     minWidth: 44,
                     padding: '6px 8px',
-                    color:      active ? 'var(--accent)' : 'var(--text-muted)',
+                    color:      active ? 'var(--accent-hex)' : 'var(--text-muted)',
                     background: active ? 'rgba(193,59,117,0.08)' : 'transparent',
                   }}
                 >

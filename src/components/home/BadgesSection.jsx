@@ -4,7 +4,7 @@ export default function BadgesSection({ badges }) {
   return (
     <div>
       <h2 className="text-sm font-bold mb-3" style={{ color:'var(--text-header)' }}>
-        Badges Conquistadas <span style={{ color:'var(--accent)' }}>({badges.length}/50)</span>
+        Badges Conquistadas <span style={{ color:'var(--accent-hex)' }}>({badges.length}/50)</span>
       </h2>
       <div className="grid grid-cols-5 gap-2">
         {badges.map(b => (
@@ -18,7 +18,7 @@ export default function BadgesSection({ badges }) {
               className="font-bold flex items-center justify-center rounded-full"
               style={{
                 width:30, height:30,
-                background:'linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%)',
+                background:'linear-gradient(135deg, var(--accent-hex) 0%, var(--accent-deep) 100%)',
                 color:'#fff', fontSize:10, letterSpacing:1,
               }}
             >

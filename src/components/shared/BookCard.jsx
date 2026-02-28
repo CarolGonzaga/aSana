@@ -4,7 +4,7 @@ import ProgressBar from './ProgressBar';
 
 const STATUS_LABEL = { lendo:'Lendo', lido:'Lido', quero_ler:'Quero ler', abandonado:'Abandonado' };
 const STATUS_COLOR = {
-  lendo:     'var(--accent)',
+  lendo:     'var(--accent-hex)',
   lido:      '#3d9a6a',
   quero_ler: 'var(--accent-deep)',
   abandonado:'#94a3b8',
@@ -52,7 +52,7 @@ export default function BookCard({ book, size = 'md', onClick }) {
         <ProgressBar percent={percent} height={4} />
         <p
           className="text-center font-bold"
-          style={{ fontSize: 9, color: 'var(--accent)' }}
+          style={{ fontSize: 9, color: 'var(--accent-hex)' }}
         >
           {percent}%
         </p>

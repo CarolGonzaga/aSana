@@ -24,7 +24,7 @@ export default function StatsGrid({ stats }) {
             className="rounded-2xl p-3 flex flex-col items-center gap-1"
             style={{ background:'var(--bg-card)' }}
           >
-            <Icon size={16} style={{ color:'var(--accent)' }} />
+            <Icon size={16} style={{ color:'var(--accent-hex)' }} />
             <span className="text-xl font-bold leading-none" style={{ color:'var(--text-header)' }}>
               {stats[key]}
             </span>

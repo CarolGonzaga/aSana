@@ -35,7 +35,7 @@ function FriendProfile({ friend, onBack, getUserBooks, marathons, currentUser })
         <img
           src={friend.avatar} alt=""
           className="w-16 h-16 rounded-full mx-auto object-cover"
-          style={{ border:'2.5px solid var(--accent)' }}
+          style={{ border:'2.5px solid var(--accent-hex)' }}
         />
         <h2 className="font-bold text-base mt-2.5" style={{ color:'var(--text-header)' }}>{friend.name}</h2>
         <p style={{ fontSize:11, color:'var(--text-muted)' }}>{friend.nick}</p>
@@ -51,7 +51,7 @@ function FriendProfile({ friend, onBack, getUserBooks, marathons, currentUser })
           { icon:Trophy,     label:'Troféus',          val:trophies },
         ].map(({ icon:Icon, label, val }) => (
           <div key={label} className="rounded-2xl p-3.5 flex items-center gap-2.5" style={{ background:'var(--bg-card)' }}>
-            <Icon size={16} style={{ color:'var(--accent)', flexShrink:0 }} />
+            <Icon size={16} style={{ color:'var(--accent-hex)', flexShrink:0 }} />
             <div className="min-w-0">
               <p className="font-bold text-sm leading-none" style={{ color:'var(--text-header)' }}>{val}</p>
               <p style={{ fontSize:9, color:'var(--text-muted)', marginTop:2 }}>{label}</p>

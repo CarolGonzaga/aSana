@@ -142,7 +142,7 @@ export default function Shelves() {
         <Button
           size="sm"
           className="rounded-xl gap-1.5 font-bold text-white"
-          style={{ background:'var(--accent)' }}
+          style={{ background:'var(--accent-hex)' }}
           onClick={() => setShowNewShelf(true)}
         >
           <Plus size={14} /> Nova
@@ -196,7 +196,7 @@ export default function Shelves() {
           />
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowNewShelf(false)} className="rounded-xl">Cancelar</Button>
-            <Button onClick={handleCreateShelf} className="rounded-xl font-bold text-white" style={{ background:'var(--accent)' }}>
+            <Button onClick={handleCreateShelf} className="rounded-xl font-bold text-white" style={{ background:'var(--accent-hex)' }}>
               Criar
             </Button>
           </DialogFooter>
@@ -218,7 +218,7 @@ export default function Shelves() {
           />
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingShelf(null)} className="rounded-xl">Cancelar</Button>
-            <Button onClick={handleRenameShelf} className="rounded-xl font-bold text-white" style={{ background:'var(--accent)' }}>
+            <Button onClick={handleRenameShelf} className="rounded-xl font-bold text-white" style={{ background:'var(--accent-hex)' }}>
               Salvar
             </Button>
           </DialogFooter>

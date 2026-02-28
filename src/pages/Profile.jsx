@@ -16,7 +16,7 @@ export default function Profile() {
         <img
           src={currentUser.avatar} alt={currentUser.name}
           className="w-20 h-20 rounded-full mx-auto object-cover glow-accent"
-          style={{ border:'3px solid var(--accent)' }}
+          style={{ border:'3px solid var(--accent-hex)' }}
         />
         <h1 className="font-bold text-lg mt-3" style={{ color:'var(--text-header)' }}>{currentUser.name}</h1>
         <p style={{ fontSize:11, color:'var(--text-muted)' }}>{currentUser.nick}</p>
@@ -35,7 +35,7 @@ export default function Profile() {
             { icon:CalendarDays,label:'Maratonas',    val:stats.totalMaratonas },
           ].map(({ icon:Icon, label, val }) => (
             <div key={label} className="rounded-2xl p-3 flex flex-col items-center gap-1" style={{ background:'var(--bg-card)' }}>
-              <Icon size={15} style={{ color:'var(--accent)' }} />
+              <Icon size={15} style={{ color:'var(--accent-hex)' }} />
               <span className="text-xl font-bold leading-none" style={{ color:'var(--text-header)' }}>{val}</span>
               <span className="font-medium text-center" style={{ fontSize:9, color:'var(--text-muted)' }}>{label}</span>
             </div>
@@ -47,20 +47,20 @@ export default function Profile() {
       {badges.length > 0 && (
         <div>
           <h2 className="text-sm font-bold mb-3" style={{ color:'var(--text-header)' }}>
-            Badges <span style={{ color:'var(--accent)' }}>({badges.length})</span>
+            Badges <span style={{ color:'var(--accent-hex)' }}>({badges.length})</span>
           </h2>
           <div className="flex flex-wrap gap-2">
             {badges.map(b => (
               <div
                 key={b.id}
                 className="rounded-xl px-2.5 py-1.5 flex items-center gap-1.5"
-                style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}
+                style={{ background:'var(--bg-card)', border:'1px solid var(--border-hex)' }}
               >
                 <span
                   className="rounded-full flex items-center justify-center font-bold text-white"
                   style={{
                     width:18, height:18, fontSize:7,
-                    background:'linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%)',
+                    background:'linear-gradient(135deg, var(--accent-hex) 0%, var(--accent-deep) 100%)',
                   }}
                 >
                   {b.symbol}

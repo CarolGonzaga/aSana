@@ -60,7 +60,7 @@ export default function BookModal({ open, onClose, book, shelves, onUpdateStatus
             <p className="text-xs" style={{ color:'var(--text-muted)' }}>{book.author}</p>
             <p className="text-xs font-medium" style={{ color:'var(--text-muted)' }}>{book.total_pages} páginas</p>
             <ProgressBar percent={percent} height={5} />
-            <p className="text-xs font-bold" style={{ color:'var(--accent)' }}>{percent}%</p>
+            <p className="text-xs font-bold" style={{ color:'var(--accent-hex)' }}>{percent}%</p>
           </div>
         </div>
 
@@ -125,7 +125,7 @@ export default function BookModal({ open, onClose, book, shelves, onUpdateStatus
           <Button
             size="sm" onClick={handleSave}
             className="rounded-xl h-9 font-bold text-white"
-            style={{ background:'var(--accent)' }}
+            style={{ background:'var(--accent-hex)' }}
           >
             Salvar
           </Button>

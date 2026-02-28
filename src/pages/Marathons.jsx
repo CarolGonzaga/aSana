@@ -57,7 +57,7 @@ function MarathonSummaryCard({ marathon, books, users, onOpen }) {
           className="flex-shrink-0 font-bold text-white"
           style={{
             fontSize:9, padding:'3px 8px', borderRadius:99,
-            background: isFinished ? '#3d9a6a' : 'var(--accent)',
+            background: isFinished ? '#3d9a6a' : 'var(--accent-hex)',
           }}
         >
           {isFinished ? 'Finalizada' : 'Ativa'}
@@ -90,13 +90,13 @@ function MarathonSummaryCard({ marathon, books, users, onOpen }) {
       <ProgressBar
         percent={percent}
         height={6}
-        color={isFinished ? '#3d9a6a' : 'var(--accent)'}
+        color={isFinished ? '#3d9a6a' : 'var(--accent-hex)'}
       />
       <div className="flex items-center justify-between mt-1.5">
         <span style={{ fontSize:10, color:'var(--text-muted)' }}>
           {isFinished ? 'Concluída' : `${daysLeft(marathon.deadline)} dias restantes`}
         </span>
-        <span style={{ fontSize:11, fontWeight:700, color: isFinished ? '#3d9a6a' : 'var(--accent)' }}>
+        <span style={{ fontSize:11, fontWeight:700, color: isFinished ? '#3d9a6a' : 'var(--accent-hex)' }}>
           {percent}%
         </span>
       </div>
@@ -125,7 +125,7 @@ function MarathonDetail({ marathon, books, users, currentUser, onFinish, onRemov
           className="font-bold text-white flex-shrink-0"
           style={{
             fontSize:9, padding:'3px 8px', borderRadius:99,
-            background: isFinished ? '#3d9a6a' : 'var(--accent)',
+            background: isFinished ? '#3d9a6a' : 'var(--accent-hex)',
           }}
         >
           {isFinished ? 'Finalizada' : 'Ativa'}
@@ -154,14 +154,14 @@ function MarathonDetail({ marathon, books, users, currentUser, onFinish, onRemov
       <div className="rounded-xl p-3.5 space-y-2.5" style={{ background:'var(--bg-main)' }}>
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold" style={{ color:'var(--text-header)' }}>Progresso Geral</span>
-          <span className="text-sm font-bold" style={{ color: isFinished ? '#3d9a6a' : 'var(--accent)' }}>
+          <span className="text-sm font-bold" style={{ color: isFinished ? '#3d9a6a' : 'var(--accent-hex)' }}>
             {percent}%
           </span>
         </div>
         <ProgressBar
           percent={percent}
           height={8}
-          color={isFinished ? '#3d9a6a' : 'var(--accent)'}
+          color={isFinished ? '#3d9a6a' : 'var(--accent-hex)'}
         />
         <div className="flex items-center justify-between" style={{ fontSize:10, color:'var(--text-muted)' }}>
           <span>{totalRead} / {marathon.total_pages_goal} páginas</span>
@@ -203,7 +203,7 @@ function MarathonDetail({ marathon, books, users, currentUser, onFinish, onRemov
                   <span className="text-xs font-bold truncate" style={{ color:'var(--text-header)' }}>
                     {user?.name}
                   </span>
-                  <span style={{ fontSize:10, color:'var(--accent)', fontWeight:700, flexShrink:0 }}>
+                  <span style={{ fontSize:10, color:'var(--accent-hex)', fontWeight:700, flexShrink:0 }}>
                     {pp}%
                   </span>
                 </div>
@@ -247,7 +247,7 @@ function MarathonDetail({ marathon, books, users, currentUser, onFinish, onRemov
       {!isFinished && (
         <Button
           className="w-full rounded-xl h-10 font-bold text-white mt-2"
-          style={{ background:'var(--accent)' }}
+          style={{ background:'var(--accent-hex)' }}
           onClick={handleManualFinish}
         >
           Declarar minha vitória
@@ -296,7 +296,7 @@ export default function Marathons() {
         <Button
           size="sm"
           className="rounded-xl gap-1.5 font-bold text-white"
-          style={{ background:'var(--accent)' }}
+          style={{ background:'var(--accent-hex)' }}
           onClick={() => setShowCreate(true)}
         >
           <Plus size={14} /> Nova
@@ -312,7 +312,7 @@ export default function Marathons() {
           { icon:Trophy,      label:'Troféus',    val: myTrophies },
         ].map(({ icon:Icon, label, val }) => (
           <div key={label} className="rounded-2xl p-2.5 flex flex-col items-center gap-1" style={{ background:'var(--bg-card)' }}>
-            <Icon size={15} style={{ color:'var(--accent)' }} />
+            <Icon size={15} style={{ color:'var(--accent-hex)' }} />
             <span className="text-lg font-bold leading-none" style={{ color:'var(--text-header)' }}>{val}</span>
             <span className="text-center font-medium" style={{ fontSize:8, color:'var(--text-muted)' }}>{label}</span>
           </div>
@@ -388,7 +388,7 @@ export default function Marathons() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowCreate(false)} className="rounded-xl">Cancelar</Button>
-            <Button onClick={handleCreate} className="rounded-xl font-bold text-white" style={{ background:'var(--accent)' }}>
+            <Button onClick={handleCreate} className="rounded-xl font-bold text-white" style={{ background:'var(--accent-hex)' }}>
               Criar
             </Button>
           </DialogFooter>

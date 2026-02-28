@@ -27,7 +27,7 @@ export default function MonthlyChart() {
                   style={{
                     fontSize:9,
                     fontWeight:700,
-                    color: isActive ? 'var(--accent)' : 'transparent',
+                    color: isActive ? 'var(--accent-hex)' : 'transparent',
                     marginBottom:3,
                     userSelect:'none',
                   }}
@@ -42,7 +42,7 @@ export default function MonthlyChart() {
                     height: barH || 4,
                     borderRadius:'6px 6px 3px 3px',
                     background: isActive
-                      ? 'linear-gradient(180deg, var(--accent) 0%, var(--accent-deep) 100%)'
+                      ? 'linear-gradient(180deg, var(--accent-hex) 0%, var(--accent-deep) 100%)'
                       : 'rgba(193,59,117,0.12)',
                     transition:'height 0.3s ease',
                   }}

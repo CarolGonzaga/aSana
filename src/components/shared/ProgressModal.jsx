@@ -70,7 +70,7 @@ export default function ProgressModal({ open, onClose, book, onSave }) {
               value={value}
               onChange={e => setValue(e.target.value)}
               className="rounded-xl border-0 text-center text-2xl font-bold h-14"
-              style={{ background: 'var(--bg-main)', color: 'var(--accent)' }}
+              style={{ background: 'var(--bg-main)', color: 'var(--accent-hex)' }}
             />
             <span
               className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium pointer-events-none"
@@ -82,7 +82,7 @@ export default function ProgressModal({ open, onClose, book, onSave }) {
 
           <div className="space-y-1.5">
             <ProgressBar percent={percent} height={8} />
-            <p className="text-xs text-right font-bold" style={{ color: 'var(--accent)' }}>
+            <p className="text-xs text-right font-bold" style={{ color: 'var(--accent-hex)' }}>
               {percent}% concluído
             </p>
           </div>
@@ -98,7 +98,7 @@ export default function ProgressModal({ open, onClose, book, onSave }) {
           <Button
             onClick={handleSave}
             className="rounded-xl h-10 text-white font-bold glow-accent"
-            style={{ background: 'var(--accent)' }}
+            style={{ background: 'var(--accent-hex)' }}
           >
             Salvar
           </Button>

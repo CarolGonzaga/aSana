@@ -55,18 +55,18 @@ function MatchResult({ me, friend, myBooks, friendBooks, onBack }) {
         <div className="flex items-center justify-center gap-5 mb-4">
           <div className="flex flex-col items-center gap-1.5">
             <img src={me.avatar} alt="" className="w-14 h-14 rounded-full object-cover"
-              style={{ border:'2.5px solid var(--accent)' }} />
+              style={{ border:'2.5px solid var(--accent-hex)' }} />
             <span style={{ fontSize:10, color:'var(--text-muted)', fontWeight:600 }}>{me.name.split(' ')[0]}</span>
           </div>
-          <Heart size={28} fill="var(--accent)" style={{ color:'var(--accent)', flexShrink:0 }} />
+          <Heart size={28} fill="var(--accent-hex)" style={{ color:'var(--accent-hex)', flexShrink:0 }} />
           <div className="flex flex-col items-center gap-1.5">
             <img src={friend.avatar} alt="" className="w-14 h-14 rounded-full object-cover"
-              style={{ border:'2.5px solid var(--accent)' }} />
+              style={{ border:'2.5px solid var(--accent-hex)' }} />
             <span style={{ fontSize:10, color:'var(--text-muted)', fontWeight:600 }}>{friend.name.split(' ')[0]}</span>
           </div>
         </div>
 
-        <div className="text-5xl font-bold mb-1" style={{ color:'var(--accent)' }}>
+        <div className="text-5xl font-bold mb-1" style={{ color:'var(--accent-hex)' }}>
           {compatibility}%
         </div>
         <p style={{ fontSize:11, color:'var(--text-muted)' }}>compatibilidade literária</p>
@@ -142,7 +142,7 @@ export default function Match() {
             <h3 className="font-bold text-sm" style={{ color:'var(--text-header)' }}>{friend.name}</h3>
             <p style={{ fontSize:10, color:'var(--text-muted)' }}>{friend.nick}</p>
           </div>
-          <Heart size={18} style={{ color:'var(--accent)', flexShrink:0 }} />
+          <Heart size={18} style={{ color:'var(--accent-hex)', flexShrink:0 }} />
         </button>
       ))}
     </div>
