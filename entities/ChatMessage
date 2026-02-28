@@ -1,0 +1,24 @@
+{
+  "name": "ChatMessage",
+  "type": "object",
+  "properties": {
+    "from": {
+      "type": "string"
+    },
+    "to": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "from",
+    "to",
+    "content"
+  ]
+}

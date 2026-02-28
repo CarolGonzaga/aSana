@@ -1,0 +1,47 @@
+{
+  "name": "Book",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "author": {
+      "type": "string"
+    },
+    "cover_url": {
+      "type": "string"
+    },
+    "total_pages": {
+      "type": "number"
+    },
+    "pages_read": {
+      "type": "number",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "lendo",
+        "lido",
+        "quero_ler",
+        "abandonado"
+      ],
+      "default": "quero_ler"
+    },
+    "rating": {
+      "type": "number",
+      "default": 0
+    },
+    "shelf_id": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "author",
+    "total_pages"
+  ]
+}
