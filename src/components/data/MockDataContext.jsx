@@ -13,29 +13,29 @@ const USERS = [
     name: "Ana Caroline",
     nick: "@anacaroline",
     avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
+      "/avatars/anacaroline.jpeg",
   },
   {
     id: "u2",
     name: "Ana Flávia",
     nick: "@anaflavia",
     avatar:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&crop=face",
+      "/avatars/anaflavia.jpeg",
   },
 ];
 
 // Cover art via Open Library covers (reliable) - all 2:3 proportion enforced via CSS
 const COVERS = {
-  "estrela-sorte": "https://covers.openlibrary.org/b/isbn/9786550430528-L.jpg",
-  pressagios: "https://covers.openlibrary.org/b/isbn/9786550433512-L.jpg",
-  astrid: "https://covers.openlibrary.org/b/isbn/9786555876239-L.jpg",
-  delilah: "https://covers.openlibrary.org/b/isbn/9786555876215-L.jpg",
-  "pink-lemonade": "https://covers.openlibrary.org/b/isbn/9788542222754-L.jpg",
-  diario: "https://covers.openlibrary.org/b/isbn/9788542215220-L.jpg",
-  princesa: "https://covers.openlibrary.org/b/isbn/9788542211115-L.jpg",
-  pitada: "https://covers.openlibrary.org/b/isbn/9788542221306-L.jpg",
-  "amor-fati": "https://covers.openlibrary.org/b/isbn/9788542220026-L.jpg",
-  crepusculo: "https://covers.openlibrary.org/b/isbn/9788599296097-L.jpg",
+  "estrela-sorte": "/covers/estrela-sorte.jpg",
+  pressagios: "/covers/pressagios.jpg",
+  astrid: "/covers/astrid.jpg",
+  delilah: "/covers/delilah.jpg",
+  "pink-lemonade": "/covers/pink-lemonade.jpg",
+  diario: "/covers/diario.jpg",
+  princesa: "/covers/princesa.jpg",
+  pitada: "/covers/pitada.jpg",
+  "amor-fati": "/covers/amor-fati.jpg",
+  crepusculo: "/covers/crepusculo.jpg",
 };
 
 // Fallback covers using a consistent book-cover placeholder with unique color per book
