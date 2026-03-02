@@ -1,394 +1,1187 @@
-import React, { useState } from 'react';
-import { useMockData } from '../components/data/MockDataContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Trophy, Flame, CheckCircle2, Plus, CalendarDays, Trash2, Crown } from 'lucide-react';
-import BookCover from '../components/shared/BookCover';
-import ProgressBar from '../components/shared/ProgressBar';
+import React, { useEffect, useMemo, useState } from "react";
+import { useMockData } from "@/components/data/MockDataContext";
 
-// ── Helpers ──────────────────────────────────────────────────
-function calcMarathonProgress(marathon, books) {
-  const totalRead = marathon.participants.reduce((sum, p) =>
-    sum + p.books.reduce((s, bid) => {
-      const b = books.find(bk => bk.id === bid);
-      return s + (b?.pages_read || 0);
-    }, 0)
-  , 0);
-  return {
-    totalRead,
-    percent: Math.min(100, Math.round((totalRead / marathon.total_pages_goal) * 100)),
-  };
-}
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
-function calcParticipantProgress(participant, books, goal) {
-  const read = participant.books.reduce((s, bid) => {
-    const b = books.find(bk => bk.id === bid);
-    return s + (b?.pages_read || 0);
-  }, 0);
-  return { read, percent: Math.min(100, Math.round((read / goal) * 100)) };
+import {
+  Plus,
+  Flag,
+  Trophy,
+  Users,
+  CalendarDays,
+  Trash2,
+  Crown,
+  BookPlus,
+} from "lucide-react";
+
+import BookCover from "@/components/shared/BookCover";
+import ProgressBar from "@/components/shared/ProgressBar";
+
+// ───────────────────────────────────────────────────────────────
+// Helpers
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
 }
 
 function daysLeft(deadline) {
-  return Math.max(0, Math.ceil((new Date(deadline) - new Date()) / 86400000));
+  try {
+    return Math.max(0, Math.ceil((new Date(deadline) - new Date()) / 86400000));
+  } catch {
+    return 0;
+  }
 }
 
-// ── MarathonSummaryCard ───────────────────────────────────────
-function MarathonSummaryCard({ marathon, books, users, onOpen }) {
-  const { percent } = calcMarathonProgress(marathon, books);
-  const isFinished  = marathon.status === 'finished';
-  const leader = marathon.participants.reduce((best, p) => {
-    const { percent: pp } = calcParticipantProgress(p, books, marathon.total_pages_goal);
-    return pp > (best?.pp || -1) ? { ...p, pp } : best;
-  }, null);
-  const leaderUser = leader ? users.find(u => u.id === leader.user_id) : null;
+function fmtDateBR(iso) {
+  try {
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yy = d.getFullYear();
+    return `${dd}/${mm}/${yy}`;
+  } catch {
+    return iso;
+  }
+}
 
+function getUser(users, userId) {
+  return users.find((u) => u.id === userId);
+}
+
+function getBook(books, bookId) {
+  return books.find((b) => b.id === bookId);
+}
+
+// Normaliza cover (seu mock usa cover_url)
+function getCoverFromBook(book) {
   return (
-    <div
-      className="rounded-2xl p-4 cursor-pointer transition-all hover:shadow-md"
-      style={{ background:'var(--bg-card)' }}
-      onClick={() => onOpen(marathon)}
-    >
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <h3 className="font-bold text-sm leading-tight" style={{ color:'var(--text-header)' }}>
-          {marathon.name}
-        </h3>
-        <span
-          className="flex-shrink-0 font-bold text-white"
-          style={{
-            fontSize:9, padding:'3px 8px', borderRadius:99,
-            background: isFinished ? '#3d9a6a' : 'var(--accent-hex)',
+    book?.cover_url ||
+    book?.coverUrl ||
+    book?.cover ||
+    book?.cover_image ||
+    book?.image ||
+    ""
+  );
+}
+
+function coverFallback(title) {
+  return `https://via.placeholder.com/200x300/C13B75/FFFFFF?text=${encodeURIComponent(
+    (title || "Livro").slice(0, 12),
+  )}`;
+}
+
+// Lista de livros da maratona (modelo novo: book_ids; fallback: inferir)
+function getMarathonBookIds(marathon) {
+  if (Array.isArray(marathon?.book_ids)) return marathon.book_ids;
+
+  const inferred = Array.from(
+    new Set((marathon?.participants || []).flatMap((p) => p.books || [])),
+  );
+  return inferred;
+}
+
+// progress de leitura por participante
+function getParticipantPagesReadForBook(participant, book) {
+  const fromMap = participant?.book_progress?.[book.id];
+  if (typeof fromMap === "number") return fromMap;
+
+  // compat legado
+  if ((participant?.books || []).includes(book.id)) {
+    return book?.pages_read || 0;
+  }
+  return 0;
+}
+
+function calcParticipantProgressShared(marathon, participant, books) {
+  const bookIds = getMarathonBookIds(marathon);
+  const bookObjs = bookIds.map((id) => getBook(books, id)).filter(Boolean);
+
+  const total = bookObjs.reduce((sum, b) => sum + (b.total_pages || 0), 0);
+
+  const read = bookObjs.reduce((sum, b) => {
+    const raw = getParticipantPagesReadForBook(participant, b);
+    const capped = clamp(raw, 0, b.total_pages || 0);
+    return sum + capped;
+  }, 0);
+
+  const percent = total > 0 ? Math.round((read / total) * 100) : 0;
+
+  return {
+    totalPages: total,
+    readPages: clamp(read, 0, total),
+    percent: clamp(percent, 0, 100),
+    bookObjs,
+  };
+}
+
+function getLeaderShared(marathon, books) {
+  const participants = marathon?.participants || [];
+  if (participants.length === 0) return null;
+
+  const scored = participants.map((p) => {
+    const pr = calcParticipantProgressShared(marathon, p, books);
+    return { user_id: p.user_id, percent: pr.percent, readPages: pr.readPages };
+  });
+
+  scored.sort((a, b) => b.percent - a.percent || b.readPages - a.readPages);
+  return scored[0] || null;
+}
+
+function determineWinnerShared(marathon, books) {
+  const participants = marathon?.participants || [];
+  const done = participants
+    .map((p) => {
+      const pr = calcParticipantProgressShared(marathon, p, books);
+      return {
+        user_id: p.user_id,
+        percent: pr.percent,
+        readPages: pr.readPages,
+      };
+    })
+    .filter((x) => x.percent >= 100);
+
+  if (done.length === 0) return null;
+
+  done.sort((a, b) => b.readPages - a.readPages);
+  return done[0]?.user_id || null;
+}
+
+function isDeadlinePassed(deadline) {
+  try {
+    return new Date() >= new Date(deadline);
+  } catch {
+    return false;
+  }
+}
+
+function marathonDurationDays(marathon) {
+  const start = marathon.created_at || marathon.start_date;
+  if (!start) return null;
+
+  try {
+    const a = new Date(start);
+    const b = new Date(marathon.deadline);
+    const days = Math.max(0, Math.ceil((b - a) / 86400000));
+    return days;
+  } catch {
+    return null;
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// UI: Avatar do líder + coroa
+function LeaderAvatar({ avatarUrl, alt }) {
+  return (
+    <div className="relative w-12 h-12 shrink-0">
+      <div
+        className="w-12 h-12 rounded-full overflow-hidden border shadow-sm"
+        style={{
+          borderColor: "rgba(255,255,255,.75)",
+          background: "rgba(255,255,255,.35)",
+        }}
+      >
+        <img
+          src={avatarUrl || "/avatars/default.png"}
+          alt={alt || "Líder"}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = "/avatars/default.png";
           }}
-        >
-          {isFinished ? 'Finalizada' : 'Ativa'}
-        </span>
+        />
       </div>
 
-      {/* Participants + leader */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className="flex -space-x-2">
-          {marathon.participants.map(p => {
-            const u = users.find(u => u.id === p.user_id);
-            return u ? (
-              <img key={p.user_id} src={u.avatar} alt={u.name}
-                className="w-7 h-7 rounded-full object-cover border-2"
-                style={{ borderColor:'var(--bg-main)' }}
-              />
-            ) : null;
-          })}
-        </div>
-        {leaderUser && !isFinished && (
-          <div className="flex items-center gap-1 ml-1">
-            <Crown size={11} style={{ color:'#f59e0b' }} />
-            <span style={{ fontSize:10, color:'var(--text-muted)', fontWeight:600 }}>
-              {leaderUser.name.split(' ')[0]}
-            </span>
-          </div>
-        )}
-      </div>
-
-      <ProgressBar
-        percent={percent}
-        height={6}
-        color={isFinished ? '#3d9a6a' : 'var(--accent-hex)'}
-      />
-      <div className="flex items-center justify-between mt-1.5">
-        <span style={{ fontSize:10, color:'var(--text-muted)' }}>
-          {isFinished ? 'Concluída' : `${daysLeft(marathon.deadline)} dias restantes`}
-        </span>
-        <span style={{ fontSize:11, fontWeight:700, color: isFinished ? '#3d9a6a' : 'var(--accent-hex)' }}>
-          {percent}%
-        </span>
+      {/* coroa “14h” inclinada */}
+      <div
+        className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
+        style={{
+          background: "var(--accent-hex)",
+          color: "white",
+          transform: "rotate(18deg)",
+          border: "2px solid rgba(255,255,255,.85)",
+        }}
+        title="Líder atual"
+      >
+        <Crown size={14} />
       </div>
     </div>
   );
 }
 
-// ── MarathonDetail ────────────────────────────────────────────
-function MarathonDetail({ marathon, books, users, currentUser, onFinish, onRemoveBook, onClose }) {
-  const { totalRead, percent } = calcMarathonProgress(marathon, books);
-  const days = daysLeft(marathon.deadline);
-  const isFinished = marathon.status === 'finished';
+// ───────────────────────────────────────────────────────────────
+// Card (ATIVAS) — líder com avatar + coroa à direita
+function MarathonActiveCard({ marathon, books, users, onOpen }) {
+  const leader = getLeaderShared(marathon, books);
+  const leaderUser = leader ? getUser(users, leader.user_id) : null;
 
-  const handleManualFinish = () => {
-    if (!isFinished) onFinish(marathon.id, currentUser.id);
-  };
+  const bookCount = getMarathonBookIds(marathon).length;
 
   return (
-    <div className="space-y-5">
-      {/* Title + status */}
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="font-bold text-lg leading-tight" style={{ color:'var(--text-header)' }}>
-          {marathon.name}
-        </h2>
-        <span
-          className="font-bold text-white flex-shrink-0"
-          style={{
-            fontSize:9, padding:'3px 8px', borderRadius:99,
-            background: isFinished ? '#3d9a6a' : 'var(--accent-hex)',
-          }}
-        >
-          {isFinished ? 'Finalizada' : 'Ativa'}
-        </span>
-      </div>
-
-      {/* Participant avatars */}
-      <div className="flex items-center gap-3">
-        <div className="flex -space-x-2">
-          {marathon.participants.map(p => {
-            const u = users.find(u => u.id === p.user_id);
-            return u ? (
-              <img key={p.user_id} src={u.avatar} alt=""
-                className="w-9 h-9 rounded-full object-cover border-2"
-                style={{ borderColor:'var(--bg-card)' }}
-              />
-            ) : null;
-          })}
-        </div>
-        <div className="text-xs" style={{ color:'var(--text-muted)' }}>
-          {marathon.participants.length} participantes
-        </div>
-      </div>
-
-      {/* Overall progress card */}
-      <div className="rounded-xl p-3.5 space-y-2.5" style={{ background:'var(--bg-main)' }}>
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold" style={{ color:'var(--text-header)' }}>Progresso Geral</span>
-          <span className="text-sm font-bold" style={{ color: isFinished ? '#3d9a6a' : 'var(--accent-hex)' }}>
-            {percent}%
-          </span>
-        </div>
-        <ProgressBar
-          percent={percent}
-          height={8}
-          color={isFinished ? '#3d9a6a' : 'var(--accent-hex)'}
-        />
-        <div className="flex items-center justify-between" style={{ fontSize:10, color:'var(--text-muted)' }}>
-          <span>{totalRead} / {marathon.total_pages_goal} páginas</span>
-          <span className="flex items-center gap-1">
-            <CalendarDays size={10} />
-            {isFinished ? 'Encerrada' : `${days} dias restantes`}
-          </span>
-        </div>
-      </div>
-
-      {/* Winner banner */}
-      {marathon.winner && (
+    <button
+      type="button"
+      onClick={() => onOpen(marathon)}
+      className="w-full text-left rounded-2xl overflow-hidden border transition hover:shadow-sm"
+      style={{
+        background: "var(--bg-card)",
+        borderColor: "var(--border-hex)",
+      }}
+    >
+      <div className="p-5 relative">
+        {/* faixa lateral rosa (ativas) */}
         <div
-          className="rounded-xl p-3 flex items-center gap-2.5"
-          style={{ background:'rgba(61,154,106,0.1)', border:'1px solid rgba(61,154,106,0.2)' }}
-        >
-          <Trophy size={18} className="text-yellow-500 flex-shrink-0" />
-          <div>
-            <p className="text-xs font-bold" style={{ color:'#3d9a6a' }}>
-              {users.find(u => u.id === marathon.winner)?.name} venceu!
-            </p>
-            <p style={{ fontSize:9, color:'var(--text-muted)' }}>Troféu adicionado ao perfil</p>
-          </div>
-        </div>
-      )}
+          className="absolute left-0 top-0 bottom-0 w-1.5"
+          style={{ background: "var(--accent-hex)" }}
+        />
 
-      {/* Per-participant sections */}
-      {marathon.participants.map(p => {
-        const user = users.find(u => u.id === p.user_id);
-        const { read, percent: pp } = calcParticipantProgress(p, books, marathon.total_pages_goal);
-        const pBooks = p.books.map(bid => books.find(b => b.id === bid)).filter(Boolean);
+        <div className="pl-1">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h3
+                className="text-lg font-extrabold leading-tight truncate"
+                style={{ color: "var(--text-header)" }}
+              >
+                {marathon.name}
+              </h3>
 
-        return (
-          <div key={p.user_id} className="space-y-2.5">
-            <div className="flex items-center gap-2.5">
-              <img src={user?.avatar} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-xs font-bold truncate" style={{ color:'var(--text-header)' }}>
-                    {user?.name}
-                  </span>
-                  <span style={{ fontSize:10, color:'var(--accent-hex)', fontWeight:700, flexShrink:0 }}>
-                    {pp}%
-                  </span>
-                </div>
-                <ProgressBar percent={pp} height={4} />
-              </div>
-              <div className="flex items-center gap-0.5 flex-shrink-0">
-                <Trophy size={10} style={{ color:'#f59e0b' }} />
-                <span style={{ fontSize:9, color:'var(--text-muted)', fontWeight:600 }}>{p.trophies}</span>
+              <p
+                className="text-sm mt-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Fim: {fmtDateBR(marathon.deadline)} ·{" "}
+                {daysLeft(marathon.deadline)} dias
+              </p>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{
+                    background: "rgba(255,255,255,.55)",
+                    border: "1px solid var(--border-hex)",
+                    color: "var(--text-header)",
+                  }}
+                >
+                  <Users size={14} style={{ color: "var(--accent-hex)" }} />
+                  {marathon.participants.length} participantes
+                </span>
+
+                <span
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{
+                    background: "rgba(255,255,255,.55)",
+                    border: "1px solid var(--border-hex)",
+                    color: "var(--text-header)",
+                  }}
+                >
+                  📚 {bookCount} livros
+                </span>
               </div>
             </div>
 
-            {/* Books in marathon */}
-            {pBooks.length > 0 && (
-              <div className="flex gap-2 flex-wrap pl-9">
-                {pBooks.map(book => (
-                  <div key={book.id} className="relative group">
-                    <div
-                      className="rounded-lg overflow-hidden shadow-sm"
-                      style={{ width:48 }}
-                    >
-                      <BookCover src={book.cover_url} title={book.title} className="rounded-lg" />
+            {/* avatar do líder no lado direito */}
+            {leaderUser ? (
+              <LeaderAvatar
+                avatarUrl={leaderUser.avatar}
+                alt={leaderUser.name || leaderUser.nick || "Líder"}
+              />
+            ) : null}
+          </div>
+
+          <div className="mt-4">
+            <ProgressBar percent={leader?.percent ?? 0} />
+            <div
+              className="mt-1 text-xs"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Progresso líder: {leader?.percent ?? 0}%
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────
+// Card (FINALIZADAS)
+function FinishedMarathonCard({ marathon, books, users, onOpen }) {
+  const participantsCount = marathon.participants?.length || 0;
+  const bookIds = getMarathonBookIds(marathon);
+  const booksCount = bookIds.length;
+
+  const winnerId =
+    marathon.winner_id ??
+    marathon.winner ??
+    determineWinnerShared(marathon, books);
+  const winnerUser = winnerId ? getUser(users, winnerId) : null;
+
+  const duration = marathonDurationDays(marathon);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(marathon)}
+      className="w-full text-left rounded-2xl p-5 transition hover:shadow-sm"
+      style={{
+        background: "rgba(255,255,255,0.22)",
+        border: "1px solid rgba(0,0,0,0.08)",
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div
+            className="text-lg font-extrabold truncate"
+            style={{ color: "var(--text-header)" }}
+          >
+            {marathon.name}
+          </div>
+          <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+            Prazo final: {fmtDateBR(marathon.deadline)}
+          </div>
+        </div>
+
+        <div
+          className="rounded-full px-3 py-1 text-xs font-semibold"
+          style={{
+            background: "rgba(0,0,0,0.04)",
+            border: "1px solid rgba(0,0,0,0.08)",
+            color: "var(--text-muted)",
+          }}
+        >
+          Finalizada
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center gap-3">
+        <div
+          className="w-10 h-10 rounded-full overflow-hidden border"
+          style={{ borderColor: "var(--border-hex)" }}
+        >
+          <img
+            src={winnerUser?.avatar || "/avatars/default.png"}
+            alt={winnerUser?.name || "Sem vencedor"}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.src = "/avatars/default.png";
+            }}
+          />
+        </div>
+
+        <div className="min-w-0">
+          <div
+            className="text-[10px] font-bold tracking-widest"
+            style={{ color: "var(--accent-deep)" }}
+          >
+            {winnerUser ? "VENCEDOR" : "RESULTADO"}
+          </div>
+          <div
+            className="text-sm font-extrabold truncate"
+            style={{ color: "var(--text-header)" }}
+          >
+            {winnerUser?.name || "Sem vencedor"}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {[
+          { label: "PARTICIPANTES", value: participantsCount },
+          { label: "LIVROS", value: booksCount },
+          { label: "PÁGINAS", value: marathon.total_pages_goal ?? "—" },
+          { label: "DURAÇÃO", value: duration != null ? `${duration}d` : "—" },
+        ].map((it) => (
+          <div
+            key={it.label}
+            className="rounded-xl p-2.5"
+            style={{
+              background: "rgba(0,0,0,0.03)",
+              border: "1px solid rgba(0,0,0,0.06)",
+            }}
+          >
+            <div
+              className="text-[10px] font-bold tracking-widest"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {it.label}
+            </div>
+            <div
+              className="text-sm font-extrabold"
+              style={{ color: "var(--text-header)" }}
+            >
+              {it.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </button>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────
+// Detail dialog
+function MarathonDetailDialog({
+  marathon,
+  books,
+  users,
+  currentUser,
+  onClose,
+  onFinish,
+  onAddBookToMarathon,
+  onRemoveBookFromMarathon,
+}) {
+  const [selectedBookId, setSelectedBookId] = useState("");
+
+  // auto-finaliza
+  useEffect(() => {
+    if (!marathon) return;
+    if (marathon.status === "finished") return;
+
+    const winnerId = determineWinnerShared(marathon, books);
+    const deadlinePassed = isDeadlinePassed(marathon.deadline);
+
+    if (winnerId) onFinish?.(marathon.id, winnerId);
+    else if (deadlinePassed) onFinish?.(marathon.id, null);
+  }, [marathon, books, onFinish]);
+
+  if (!marathon) return null;
+
+  const isFinished = marathon.status === "finished";
+
+  const bookIds = getMarathonBookIds(marathon);
+  const marathonBooks = bookIds.map((id) => getBook(books, id)).filter(Boolean);
+
+  const creatorId =
+    marathon.creator_id || marathon.owner_id || marathon.created_by;
+  const isCreator = creatorId ? creatorId === currentUser.id : true;
+
+  const canEditBooks = !isFinished && isCreator;
+
+  const participants = marathon.participants || [];
+
+  const participantsWithProgress = participants.map((p) => {
+    const u = getUser(users, p.user_id);
+    const pr = calcParticipantProgressShared(marathon, p, books);
+    return { ...p, user: u, progress: pr };
+  });
+
+  const winnerId =
+    marathon.winner_id ??
+    marathon.winner ??
+    determineWinnerShared(marathon, books);
+  const winnerUser = winnerId ? getUser(users, winnerId) : null;
+
+  // acervo interno do criador: livros dele
+  const creatorLibrary = useMemo(() => {
+    if (!isCreator) return [];
+    return books.filter((b) => b.owner === currentUser.id);
+  }, [books, currentUser.id, isCreator]);
+
+  const handleAddBook = () => {
+    if (!selectedBookId) return;
+    onAddBookToMarathon?.(marathon.id, selectedBookId);
+    setSelectedBookId("");
+  };
+
+  return (
+    <Dialog open={!!marathon} onOpenChange={(v) => !v && onClose()}>
+      {/* IMPORTANT: limitar altura e permitir rolagem */}
+      <DialogContent className="max-w-3xl rounded-2xl max-h-[85vh] overflow-hidden">
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Trophy size={18} style={{ color: "var(--accent-hex)" }} />
+              <span style={{ color: "var(--text-header)" }}>
+                {marathon.name}
+              </span>
+            </div>
+
+            <div
+              className="text-xs font-bold uppercase tracking-wide"
+              style={{ color: "var(--text-muted)" }}
+            >
+              {isFinished
+                ? winnerUser
+                  ? `Vencedor: ${winnerUser.name}`
+                  : "Sem vencedor"
+                : "Em andamento"}
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* corpo rolável */}
+        <div className="flex-1 overflow-y-auto pr-1 space-y-5">
+          {/* Top info */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div
+              className="rounded-xl p-3 border"
+              style={{
+                background: "rgba(255,255,255,.55)",
+                borderColor: "var(--border-hex)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <CalendarDays
+                  size={14}
+                  style={{ color: "var(--accent-hex)" }}
+                />
+                <span className="text-sm font-semibold">Fim</span>
+              </div>
+              <div
+                className="mt-1 text-sm"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {fmtDateBR(marathon.deadline)} · {daysLeft(marathon.deadline)}{" "}
+                dias
+              </div>
+            </div>
+
+            <div
+              className="rounded-xl p-3 border"
+              style={{
+                background: "rgba(255,255,255,.55)",
+                borderColor: "var(--border-hex)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Flag size={14} style={{ color: "var(--accent-hex)" }} />
+                <span className="text-sm font-semibold">Meta total</span>
+              </div>
+              <div
+                className="mt-1 text-sm"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {marathon.total_pages_goal} páginas
+              </div>
+            </div>
+
+            <div
+              className="rounded-xl p-3 border"
+              style={{
+                background: "rgba(255,255,255,.55)",
+                borderColor: "var(--border-hex)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Users size={14} style={{ color: "var(--accent-hex)" }} />
+                <span className="text-sm font-semibold">Participantes</span>
+              </div>
+              <div
+                className="mt-1 text-sm"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {participants.length}
+              </div>
+            </div>
+          </div>
+
+          {/* LIVROS DA MARATONA */}
+          <div className="space-y-2">
+            <div
+              className="text-xs font-bold uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Livros da maratona ({marathonBooks.length})
+            </div>
+
+            {marathonBooks.length === 0 ? (
+              <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+                Nenhum livro adicionado ainda.
+              </div>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto scroll-hide pb-1">
+                {marathonBooks.map((b) => (
+                  <div key={b.id} className="shrink-0 w-24">
+                    <div className="relative">
+                      <BookCover
+                        cover={getCoverFromBook(b) || coverFallback(b.title)}
+                        title={b.title}
+                        className="rounded-xl"
+                      />
+
+                      {/* lixeira no livro (somente se puder editar) */}
+                      {canEditBooks && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onRemoveBookFromMarathon?.(marathon.id, b.id)
+                          }
+                          className="absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-sm"
+                          style={{
+                            background: "#ef4444",
+                            color: "white",
+                            border: "2px solid rgba(255,255,255,.85)",
+                          }}
+                          title="Remover livro"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
-                    {!isFinished && (
-                      <button
-                        className="absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ width:16, height:16, background:'#ef4444' }}
-                        onClick={() => onRemoveBook(marathon.id, book.id)}
-                      >
-                        <Trash2 size={8} />
-                      </button>
-                    )}
+
+                    <div
+                      className="mt-1 text-[11px] font-semibold line-clamp-2"
+                      style={{ color: "var(--text-main)" }}
+                      title={b.title}
+                    >
+                      {b.title}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Adicionar livro (somente criador e ativa) */}
+            {canEditBooks && (
+              <div
+                className="mt-2 rounded-2xl p-3"
+                style={{
+                  background: "rgba(255,255,255,.35)",
+                  border: "1px solid var(--border-hex)",
+                }}
+              >
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <select
+                    value={selectedBookId}
+                    onChange={(e) => setSelectedBookId(e.target.value)}
+                    className="h-10 rounded-xl px-3 text-sm outline-none"
+                    style={{
+                      background: "rgba(255,255,255,0.55)",
+                      border: "1px solid var(--border-hex)",
+                      color: "var(--text-main)",
+                    }}
+                  >
+                    <option value="">Selecione um livro do seu acervo…</option>
+                    {creatorLibrary.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.title}
+                      </option>
+                    ))}
+                  </select>
+
+                  <Button
+                    className="rounded-xl h-10 font-bold text-white"
+                    style={{ background: "var(--accent-hex)" }}
+                    onClick={handleAddBook}
+                  >
+                    <BookPlus size={16} className="mr-2" />
+                    Adicionar livro
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-        );
-      })}
 
-      {/* Manual finish button */}
-      {!isFinished && (
-        <Button
-          className="w-full rounded-xl h-10 font-bold text-white mt-2"
-          style={{ background:'var(--accent-hex)' }}
-          onClick={handleManualFinish}
-        >
-          Declarar minha vitória
-        </Button>
-      )}
+          {/* PROGRESSO POR PARTICIPANTE */}
+          <div className="space-y-3">
+            <h4
+              className="text-xs font-bold uppercase tracking-wider"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Progresso por participante
+            </h4>
 
-      <Button variant="outline" className="w-full rounded-xl h-10" onClick={onClose}>
-        Fechar
-      </Button>
-    </div>
+            <div className="space-y-3">
+              {participantsWithProgress.map((p) => {
+                const u = p.user;
+                const trophies = p.trophies || 0;
+
+                return (
+                  <div
+                    key={p.user_id}
+                    className="rounded-2xl p-4 border"
+                    style={{
+                      background: "var(--bg-card)",
+                      borderColor: "var(--border-hex)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-10 h-10 rounded-full overflow-hidden border"
+                          style={{ borderColor: "rgba(255,255,255,.7)" }}
+                        >
+                          <img
+                            src={u?.avatar || "/avatars/default.png"}
+                            alt={u?.name || "Usuário"}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = "/avatars/default.png";
+                            }}
+                          />
+                        </div>
+
+                        <div>
+                          <div
+                            className="font-bold leading-tight"
+                            style={{ color: "var(--text-header)" }}
+                          >
+                            {u?.name || u?.nick || "Usuário"}
+                          </div>
+                          <div
+                            className="text-xs"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            {p.progress.percent}% • {p.progress.readPages} /{" "}
+                            {p.progress.totalPages} páginas
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold"
+                        style={{
+                          background: "rgba(255,255,255,.55)",
+                          border: "1px solid var(--border-hex)",
+                          color: "var(--accent-hex)",
+                        }}
+                        title="Troféus"
+                      >
+                        <Crown size={12} />
+                        {trophies}
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <ProgressBar percent={p.progress.percent} />
+                    </div>
+
+                    {/* Grid por livro + barra pequena */}
+                    {marathonBooks.length > 0 && (
+                      <div className="mt-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {marathonBooks.map((b) => {
+                            const raw = getParticipantPagesReadForBook(p, b);
+                            const capped = clamp(raw, 0, b.total_pages || 0);
+                            const bookPercent =
+                              b.total_pages > 0
+                                ? clamp(
+                                    Math.round((capped / b.total_pages) * 100),
+                                    0,
+                                    100,
+                                  )
+                                : 0;
+
+                            return (
+                              <div
+                                key={b.id}
+                                className="rounded-2xl p-3"
+                                style={{
+                                  background: "rgba(255,255,255,.35)",
+                                  border: "1px solid var(--border-hex)",
+                                }}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div className="w-14 shrink-0">
+                                    <BookCover
+                                      cover={
+                                        getCoverFromBook(b) ||
+                                        coverFallback(b.title)
+                                      }
+                                      title={b.title}
+                                      className="rounded-xl"
+                                    />
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <div
+                                      className="text-xs font-semibold line-clamp-2"
+                                      style={{ color: "var(--text-main)" }}
+                                      title={b.title}
+                                    >
+                                      {b.title}
+                                    </div>
+
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <div
+                                        className="w-6 h-6 rounded-full overflow-hidden border shrink-0"
+                                        style={{
+                                          borderColor: "rgba(255,255,255,.7)",
+                                        }}
+                                      >
+                                        <img
+                                          src={
+                                            u?.avatar || "/avatars/default.png"
+                                          }
+                                          alt={u?.name || "Usuário"}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.currentTarget.src =
+                                              "/avatars/default.png";
+                                          }}
+                                        />
+                                      </div>
+
+                                      <div className="flex-1 min-w-0">
+                                        <ProgressBar percent={bookPercent} />
+                                      </div>
+
+                                      <div
+                                        className="text-xs font-bold w-10 text-right"
+                                        style={{ color: "var(--text-muted)" }}
+                                      >
+                                        {bookPercent}%
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      className="mt-1 text-[11px]"
+                                      style={{ color: "var(--text-muted)" }}
+                                    >
+                                      {capped} / {b.total_pages || 0} páginas
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Aviso de finalização sem vencedor */}
+          {isFinished && !winnerUser && (
+            <div
+              className="rounded-2xl p-3 text-sm"
+              style={{
+                background: "rgba(255,255,255,.35)",
+                border: "1px solid var(--border-hex)",
+                color: "var(--text-muted)",
+              }}
+            >
+              O prazo acabou e ninguém completou 100% dos livros. Esta maratona
+              terminou <b>sem vencedor</b>.
+            </div>
+          )}
+        </div>
+
+        {/* footer fixo */}
+        <DialogFooter className="mt-2 shrink-0">
+          <Button variant="outline" className="rounded-xl" onClick={onClose}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────
+// Main Page
 export default function Marathons() {
-  const { marathons, books, users, currentUser, createMarathon, finishMarathon, removeBookFromMarathon } = useMockData();
+  const {
+    marathons,
+    books,
+    users,
+    currentUser,
+    createMarathon,
+    finishMarathon,
+    addBookToMarathon,
+    removeBookFromMarathon,
+  } = useMockData();
 
-  const [selected,    setSelected]    = useState(null);
-  const [showCreate,  setShowCreate]  = useState(false);
-  const [newName,     setNewName]     = useState('');
-  const [newDeadline, setNewDeadline] = useState('');
-  const [newGoal,     setNewGoal]     = useState('');
+  const [selected, setSelected] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
 
-  const active   = marathons.filter(m => m.status === 'active');
-  const finished = marathons.filter(m => m.status === 'finished');
-  const myTrophies = marathons.reduce((s, m) => {
-    const p = m.participants.find(p => p.user_id === currentUser.id);
-    return s + (p?.trophies || 0);
-  }, 0);
+  const [newName, setNewName] = useState("");
+  const [newDeadline, setNewDeadline] = useState("");
+  const [newGoal, setNewGoal] = useState("");
+
+  const active = useMemo(
+    () => marathons.filter((m) => m.status === "active"),
+    [marathons],
+  );
+  const finished = useMemo(
+    () => marathons.filter((m) => m.status === "finished"),
+    [marathons],
+  );
+
+  const wins = useMemo(() => {
+    return finished.reduce((acc, m) => {
+      const winnerId =
+        m.winner_id ?? m.winner ?? determineWinnerShared(m, books);
+      return acc + (winnerId === currentUser.id ? 1 : 0);
+    }, 0);
+  }, [finished, books, currentUser.id]);
+
+  const liveSelected = useMemo(() => {
+    if (!selected) return null;
+    return marathons.find((m) => m.id === selected.id) || null;
+  }, [selected, marathons]);
 
   const handleCreate = () => {
-    if (newName.trim() && newDeadline && Number(newGoal) > 0) {
-      createMarathon({ name: newName.trim(), deadline: newDeadline, total_pages_goal: Number(newGoal) });
-      setNewName(''); setNewDeadline(''); setNewGoal('');
-      setShowCreate(false);
-    }
+    if (!newName.trim() || !newDeadline || Number(newGoal) <= 0) return;
+
+    createMarathon({
+      name: newName.trim(),
+      deadline: newDeadline,
+      total_pages_goal: Number(newGoal),
+    });
+
+    setNewName("");
+    setNewDeadline("");
+    setNewGoal("");
+    setShowCreate(false);
   };
 
-  // Sync selected with live marathon state
-  const liveSelected = selected ? marathons.find(m => m.id === selected.id) || null : null;
+  const onFinish = (marathonId, winnerIdOrNull) => {
+    finishMarathon(marathonId, winnerIdOrNull);
+  };
+
+  const onAddBook = (marathonId, bookId) => {
+    addBookToMarathon(marathonId, bookId);
+  };
+
+  const onRemoveBook = (marathonId, bookId) => {
+    removeBookFromMarathon(marathonId, bookId);
+  };
 
   return (
-    <div className="space-y-6 pb-4">
-      <div className="flex items-center justify-between pt-1">
-        <h1 className="text-2xl font-bold" style={{ color:'var(--text-header)' }}>Maratonas</h1>
-        <Button
-          size="sm"
-          className="rounded-xl gap-1.5 font-bold text-white"
-          style={{ background:'var(--accent-hex)' }}
+    <div className="space-y-5 pb-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 pt-1">
+        <div>
+          <h1
+            className="text-3xl font-extrabold"
+            style={{ color: "var(--text-header)" }}
+          >
+            Maratonas
+          </h1>
+          <p className="mt-1" style={{ color: "var(--text-muted)" }}>
+            Competição literária saudável.
+          </p>
+        </div>
+
+        <button
+          type="button"
           onClick={() => setShowCreate(true)}
+          className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center shadow-md"
+          style={{ background: "var(--accent-hex)", color: "white" }}
+          title="Nova maratona"
         >
-          <Plus size={14} /> Nova
-        </Button>
+          <Plus size={20} />
+        </button>
       </div>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { icon:Flame,       label:'Total',      val: marathons.length },
-          { icon:Flame,       label:'Ativas',     val: active.length },
-          { icon:CheckCircle2,label:'Finalizadas',val: finished.length },
-          { icon:Trophy,      label:'Troféus',    val: myTrophies },
-        ].map(({ icon:Icon, label, val }) => (
-          <div key={label} className="rounded-2xl p-2.5 flex flex-col items-center gap-1" style={{ background:'var(--bg-card)' }}>
-            <Icon size={15} style={{ color:'var(--accent-hex)' }} />
-            <span className="text-lg font-bold leading-none" style={{ color:'var(--text-header)' }}>{val}</span>
-            <span className="text-center font-medium" style={{ fontSize:8, color:'var(--text-muted)' }}>{label}</span>
+      {/* Summary cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div
+          className="rounded-2xl p-5 flex flex-col items-center justify-center gap-2 border"
+          style={{
+            background: "var(--bg-card)",
+            borderColor: "var(--border-hex)",
+          }}
+        >
+          <Flag size={20} style={{ color: "var(--accent-hex)" }} />
+          <div
+            className="text-4xl font-extrabold leading-none"
+            style={{ color: "var(--text-header)" }}
+          >
+            {active.length}
           </div>
-        ))}
+          <div
+            className="text-xs font-bold uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Ativas
+          </div>
+        </div>
+
+        <div
+          className="rounded-2xl p-5 flex flex-col items-center justify-center gap-2 border"
+          style={{
+            background: "var(--bg-card)",
+            borderColor: "var(--border-hex)",
+          }}
+        >
+          <Trophy size={20} style={{ color: "var(--accent-hex)" }} />
+          <div
+            className="text-4xl font-extrabold leading-none"
+            style={{ color: "var(--text-header)" }}
+          >
+            {finished.length}
+          </div>
+          <div
+            className="text-xs font-bold uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Finalizadas
+          </div>
+        </div>
+
+        <div
+          className="rounded-2xl p-5 flex flex-col items-center justify-center gap-2 border"
+          style={{
+            background: "var(--bg-card)",
+            borderColor: "var(--border-hex)",
+          }}
+        >
+          <Crown size={20} style={{ color: "var(--accent-hex)" }} />
+          <div
+            className="text-4xl font-extrabold leading-none"
+            style={{ color: "var(--text-header)" }}
+          >
+            {wins}
+          </div>
+          <div
+            className="text-xs font-bold uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Vitórias
+          </div>
+        </div>
       </div>
 
-      {active.length > 0 && (
-        <div>
-          <h2 className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color:'var(--text-muted)' }}>Ativas</h2>
-          <div className="space-y-2.5">
-            {active.map(m => (
-              <MarathonSummaryCard key={m.id} marathon={m} books={books} users={users} onOpen={setSelected} />
-            ))}
-          </div>
+      {/* ATIVAS */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div
+            className="w-2.5 h-5 rounded-full"
+            style={{ background: "var(--accent-hex)" }}
+          />
+          <h2
+            className="text-lg font-extrabold"
+            style={{ color: "var(--text-header)" }}
+          >
+            Ativas
+          </h2>
         </div>
-      )}
 
-      {finished.length > 0 && (
-        <div>
-          <h2 className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color:'var(--text-muted)' }}>Finalizadas</h2>
-          <div className="space-y-2.5">
-            {finished.map(m => (
-              <MarathonSummaryCard key={m.id} marathon={m} books={books} users={users} onOpen={setSelected} />
-            ))}
+        {active.length === 0 ? (
+          <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Você ainda não tem maratonas ativas.
           </div>
-        </div>
-      )}
-
-      {/* Marathon detail dialog */}
-      <Dialog open={!!liveSelected} onOpenChange={() => setSelected(null)}>
-        <DialogContent
-          className="rounded-2xl border-0 shadow-xl w-[calc(100vw-32px)] max-w-sm overflow-y-auto"
-          style={{ background:'var(--bg-card)', maxHeight:'88vh' }}
-        >
-          {liveSelected && (
-            <MarathonDetail
-              marathon={liveSelected}
-              books={books}
-              users={users}
-              currentUser={currentUser}
-              onFinish={finishMarathon}
-              onRemoveBook={removeBookFromMarathon}
-              onClose={() => setSelected(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Create dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="rounded-2xl border-0 w-[calc(100vw-32px)] max-w-sm" style={{ background:'var(--bg-card)' }}>
-          <DialogHeader>
-            <DialogTitle className="font-bold" style={{ color:'var(--text-header)' }}>Nova Maratona</DialogTitle>
-          </DialogHeader>
+        ) : (
           <div className="space-y-3">
-            <Input
-              value={newName} onChange={e => setNewName(e.target.value)}
-              placeholder="Nome da maratona"
-              className="rounded-xl border-0 h-10" style={{ background:'var(--bg-main)' }}
-            />
+            {active.map((m) => (
+              <MarathonActiveCard
+                key={m.id}
+                marathon={m}
+                books={books}
+                users={users}
+                onOpen={setSelected}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* FINALIZADAS */}
+      <div className="space-y-3 pt-2">
+        <h2
+          className="text-sm font-extrabold uppercase tracking-wider"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Finalizadas
+        </h2>
+
+        {finished.length === 0 ? (
+          <div className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Nenhuma maratona finalizada ainda.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {finished.map((m) => (
+              <FinishedMarathonCard
+                key={m.id}
+                marathon={m}
+                books={books}
+                users={users}
+                onOpen={setSelected}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dialog: detalhes */}
+      <MarathonDetailDialog
+        marathon={liveSelected}
+        books={books}
+        users={users}
+        currentUser={currentUser}
+        onClose={() => setSelected(null)}
+        onFinish={onFinish}
+        onAddBookToMarathon={onAddBook}
+        onRemoveBookFromMarathon={onRemoveBook}
+      />
+
+      {/* Dialog: criar */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle style={{ color: "var(--text-header)" }}>
+              Nova maratona
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium mb-1 block" style={{ color:'var(--text-muted)' }}>Data limite</label>
+              <div
+                className="text-xs font-bold mb-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Nome
+              </div>
               <Input
-                type="date" value={newDeadline} onChange={e => setNewDeadline(e.target.value)}
-                className="rounded-xl border-0 h-10" style={{ background:'var(--bg-main)' }}
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Ex: Desafio Romance"
               />
             </div>
-            <Input
-              type="number" value={newGoal} onChange={e => setNewGoal(e.target.value)}
-              placeholder="Meta de páginas"
-              className="rounded-xl border-0 h-10" style={{ background:'var(--bg-main)' }}
-            />
+
+            <div>
+              <div
+                className="text-xs font-bold mb-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Data fim
+              </div>
+              <Input
+                type="date"
+                value={newDeadline}
+                onChange={(e) => setNewDeadline(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <div
+                className="text-xs font-bold mb-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Meta total (páginas)
+              </div>
+              <Input
+                inputMode="numeric"
+                value={newGoal}
+                onChange={(e) => setNewGoal(e.target.value)}
+                placeholder="Ex: 1146"
+              />
+            </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowCreate(false)} className="rounded-xl">Cancelar</Button>
-            <Button onClick={handleCreate} className="rounded-xl font-bold text-white" style={{ background:'var(--accent-hex)' }}>
+
+          <DialogFooter className="gap-2 mt-2">
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setShowCreate(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="rounded-xl text-white font-bold"
+              style={{ background: "var(--accent-hex)" }}
+              onClick={handleCreate}
+            >
               Criar
             </Button>
           </DialogFooter>

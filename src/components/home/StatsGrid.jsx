@@ -16,7 +16,7 @@ const ITEMS = [
 export default function StatsGrid({ stats }) {
   return (
     <div>
-      <h2 className="text-sm font-bold mb-3" style={{ color:'var(--text-header)' }}>Seu Ano em Números</h2>
+      <h2 className="text-sm font-bold mb-3" style={{ color:'var(--text-header)' }}>2026</h2>
       <div className="grid grid-cols-3 gap-2">
         {ITEMS.map(({ key, label, icon:Icon }) => (
           <div

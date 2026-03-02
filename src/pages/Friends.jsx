@@ -1,144 +1,103 @@
-import React, { useState } from 'react';
-import { useMockData } from '../components/data/MockDataContext';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, ChevronLeft, BookOpen, Trophy, Flame, Heart, BookMarked } from 'lucide-react';
-import BookCover from '../components/shared/BookCover';
-
-function FriendProfile({ friend, onBack, getUserBooks, marathons, currentUser }) {
-  const friendBooks = getUserBooks(friend.id);
-  const myBooks     = getUserBooks(currentUser.id);
-  const lendo  = friendBooks.filter(b => b.status === 'lendo');
-  const lidos  = friendBooks.filter(b => b.status === 'lido');
-
-  const friendMarathons = marathons.filter(m => m.participants.some(p => p.user_id === friend.id));
-  const trophies = friendMarathons.reduce((s, m) => {
-    const p = m.participants.find(p => p.user_id === friend.id);
-    return s + (p?.trophies || 0);
-  }, 0);
-
-  // Compatibility calc
-  const myTitles = new Set(myBooks.filter(b => b.status === 'lido').map(b => b.title));
-  const frTitles = new Set(friendBooks.filter(b => b.status === 'lido').map(b => b.title));
-  const common   = [...myTitles].filter(t => frTitles.has(t));
-  const allU     = new Set([...myTitles, ...frTitles]);
-  const compat   = allU.size > 0 ? Math.round((common.length / allU.size) * 100) : 0;
-
-  return (
-    <div className="space-y-5 pb-4">
-      <Button variant="ghost" size="sm" className="-ml-1 gap-1 rounded-xl h-8" onClick={onBack}>
-        <ChevronLeft size={14} /> Voltar
-      </Button>
-
-      {/* Profile header */}
-      <div className="rounded-2xl p-5 text-center" style={{ background:'var(--bg-card)' }}>
-        <img
-          src={friend.avatar} alt=""
-          className="w-16 h-16 rounded-full mx-auto object-cover"
-          style={{ border:'2.5px solid var(--accent-hex)' }}
-        />
-        <h2 className="font-bold text-base mt-2.5" style={{ color:'var(--text-header)' }}>{friend.name}</h2>
-        <p style={{ fontSize:11, color:'var(--text-muted)' }}>{friend.nick}</p>
-      </div>
-
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-2.5">
-        {[
-          { icon:Heart,      label:'Compatibilidade', val:`${compat}%` },
-          { icon:BookMarked, label:'Lendo agora',      val:lendo.length },
-          { icon:BookOpen,   label:'Total lidos',      val:lidos.length },
-          { icon:Flame,      label:'Maratonas',        val:friendMarathons.length },
-          { icon:Trophy,     label:'Troféus',          val:trophies },
-        ].map(({ icon:Icon, label, val }) => (
-          <div key={label} className="rounded-2xl p-3.5 flex items-center gap-2.5" style={{ background:'var(--bg-card)' }}>
-            <Icon size={16} style={{ color:'var(--accent-hex)', flexShrink:0 }} />
-            <div className="min-w-0">
-              <p className="font-bold text-sm leading-none" style={{ color:'var(--text-header)' }}>{val}</p>
-              <p style={{ fontSize:9, color:'var(--text-muted)', marginTop:2 }}>{label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Currently reading */}
-      {lendo.length > 0 && (
-        <div>
-          <h3 className="text-xs font-bold mb-2.5" style={{ color:'var(--text-header)' }}>Lendo Agora</h3>
-          <div className="flex gap-2.5 flex-wrap">
-            {lendo.map(book => (
-              <div key={book.id} className="rounded-xl overflow-hidden shadow-md" style={{ width:60 }}>
-                <BookCover src={book.cover_url} title={book.title} className="rounded-xl" />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+import React, { useMemo, useState } from "react";
+import { useMockData } from "@/components/data/MockDataContext";
+import { Input } from "@/components/ui/input";
+import { Search, ExternalLink } from "lucide-react";
 
 export default function Friends() {
-  const { getFriends, getUserBooks, marathons, currentUser } = useMockData();
-  const [search,   setSearch]   = useState('');
-  const [selected, setSelected] = useState(null);
+  const { getFriends } = useMockData();
+  const [q, setQ] = useState("");
+
   const friends = getFriends();
-
-  const filtered = friends.filter(f =>
-    f.name.toLowerCase().includes(search.toLowerCase()) ||
-    f.nick.toLowerCase().includes(search.toLowerCase())
-  );
-
-  if (selected) {
-    return (
-      <FriendProfile
-        friend={selected}
-        onBack={() => setSelected(null)}
-        getUserBooks={getUserBooks}
-        marathons={marathons}
-        currentUser={currentUser}
-      />
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return friends;
+    return friends.filter((f) =>
+      `${f.name} ${f.nick}`.toLowerCase().includes(s),
     );
-  }
+  }, [q, friends]);
 
   return (
-    <div className="space-y-5 pb-4">
-      <div className="pt-1">
-        <h1 className="text-2xl font-bold" style={{ color:'var(--text-header)' }}>Amigos</h1>
+    <div className="space-y-6 pb-4">
+      {/* Header */}
+      <div className="space-y-1">
+        <h1
+          className="text-3xl font-extrabold"
+          style={{ color: "var(--text-header)" }}
+        >
+          Amigos
+        </h1>
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Conecte-se com outros leitores.
+        </p>
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color:'var(--text-muted)' }} />
+      <div
+        className="rounded-2xl px-4 py-3 flex items-center gap-3"
+        style={{
+          background: "var(--bg-card)",
+          border: "1px solid var(--border-hex)",
+        }}
+      >
+        <Search size={18} style={{ color: "var(--text-muted)" }} />
         <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por nome ou nick..."
-          className="rounded-xl border-0 h-10 pl-9"
-          style={{ background:'var(--bg-card)' }}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar amigo por @nick..."
+          className="border-0 bg-transparent focus-visible:ring-0 px-0 h-8"
+          style={{ color: "var(--text-main)" }}
         />
       </div>
 
-      {/* Friends list */}
-      <div className="space-y-2.5">
-        {filtered.map(friend => (
+      {/* Section */}
+      <div className="flex items-center gap-2">
+        <span
+          className="inline-block rounded-full"
+          style={{ width: 6, height: 18, background: "var(--accent-hex)" }}
+        />
+        <h2
+          className="text-sm font-bold tracking-widest"
+          style={{ color: "var(--accent-deep)" }}
+        >
+          MEUS AMIGOS
+        </h2>
+      </div>
+
+      {/* List */}
+      <div className="space-y-3">
+        {filtered.map((f) => (
           <button
-            key={friend.id}
-            className="w-full rounded-2xl p-3.5 flex items-center gap-3 text-left transition-all hover:shadow-md"
-            style={{ background:'var(--bg-card)', border:'none', cursor:'pointer' }}
-            onClick={() => setSelected(friend)}
+            key={f.id}
+            className="w-full text-left rounded-2xl px-4 py-4 flex items-center gap-4"
+            style={{
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-hex)",
+            }}
           >
-            <img src={friend.avatar} alt="" className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="font-bold text-sm" style={{ color:'var(--text-header)' }}>{friend.name}</p>
-              <p style={{ fontSize:10, color:'var(--text-muted)' }}>{friend.nick}</p>
+            <img
+              src={f.avatar}
+              alt={f.name}
+              className="w-14 h-14 rounded-full object-cover"
+              style={{ border: "3px solid var(--accent-hex)" }}
+            />
+            <div className="min-w-0 flex-1">
+              <div
+                className="font-extrabold text-lg truncate"
+                style={{ color: "var(--text-header)" }}
+              >
+                {f.name}
+              </div>
+              <div
+                className="text-sm truncate"
+                style={{ color: "var(--accent-deep)" }}
+              >
+                {f.nick}
+              </div>
             </div>
+
+            <ExternalLink size={18} style={{ color: "var(--accent-deep)" }} />
           </button>
         ))}
-        {filtered.length === 0 && (
-          <p style={{ fontSize:12, color:'var(--text-muted)', textAlign:'center', padding:'20px 0' }}>
-            Nenhum amigo encontrado.
-          </p>
-        )}
       </div>
     </div>
   );
