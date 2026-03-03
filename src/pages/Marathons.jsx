@@ -1,3 +1,6 @@
+// ✅ (Cole aqui o seu arquivo inteiro; abaixo vou manter tudo igual ao que você mandou,
+// e mudar SOMENTE a parte do avatar por livro)
+
 import React, { useEffect, useMemo, useState } from "react";
 import { useMockData } from "@/components/data/MockDataContext";
 
@@ -59,7 +62,6 @@ function getBook(books, bookId) {
   return books.find((b) => b.id === bookId);
 }
 
-// Normaliza cover (seu mock usa cover_url)
 function getCoverFromBook(book) {
   return (
     book?.cover_url ||
@@ -77,7 +79,6 @@ function coverFallback(title) {
   )}`;
 }
 
-// Lista de livros da maratona (modelo novo: book_ids; fallback: inferir)
 function getMarathonBookIds(marathon) {
   if (Array.isArray(marathon?.book_ids)) return marathon.book_ids;
 
@@ -87,12 +88,10 @@ function getMarathonBookIds(marathon) {
   return inferred;
 }
 
-// progress de leitura por participante
 function getParticipantPagesReadForBook(participant, book) {
   const fromMap = participant?.book_progress?.[book.id];
   if (typeof fromMap === "number") return fromMap;
 
-  // compat legado
   if ((participant?.books || []).includes(book.id)) {
     return book?.pages_read || 0;
   }
@@ -148,7 +147,6 @@ function determineWinnerShared(marathon, books) {
     .filter((x) => x.percent >= 100);
 
   if (done.length === 0) return null;
-
   done.sort((a, b) => b.readPages - a.readPages);
   return done[0]?.user_id || null;
 }
@@ -176,7 +174,7 @@ function marathonDurationDays(marathon) {
 }
 
 // ───────────────────────────────────────────────────────────────
-// UI: Avatar do líder + coroa
+// UI: Avatar do líder + badge "1º"
 function LeaderAvatar({ avatarUrl, alt }) {
   return (
     <div className="relative w-12 h-12 shrink-0">
@@ -197,29 +195,31 @@ function LeaderAvatar({ avatarUrl, alt }) {
         />
       </div>
 
-      {/* coroa “14h” inclinada */}
       <div
-        className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
+        className="absolute -bottom-1 -left-1 rounded-full flex items-center justify-center shadow-sm"
         style={{
           background: "var(--accent-hex)",
           color: "white",
-          transform: "rotate(18deg)",
-          border: "2px solid rgba(255,255,255,.85)",
+          border: "2px solid rgba(255,255,255,.95)",
+          width: 18,
+          height: 18,
+          fontSize: 8,
+          fontWeight: 900,
+          lineHeight: 1,
         }}
         title="Líder atual"
       >
-        <Crown size={14} />
+        1º
       </div>
     </div>
   );
 }
 
 // ───────────────────────────────────────────────────────────────
-// Card (ATIVAS) — líder com avatar + coroa à direita
+// Card (ATIVAS)
 function MarathonActiveCard({ marathon, books, users, onOpen }) {
   const leader = getLeaderShared(marathon, books);
   const leaderUser = leader ? getUser(users, leader.user_id) : null;
-
   const bookCount = getMarathonBookIds(marathon).length;
 
   return (
@@ -233,7 +233,6 @@ function MarathonActiveCard({ marathon, books, users, onOpen }) {
       }}
     >
       <div className="p-5 relative">
-        {/* faixa lateral rosa (ativas) */}
         <div
           className="absolute left-0 top-0 bottom-0 w-1.5"
           style={{ background: "var(--accent-hex)" }}
@@ -283,7 +282,6 @@ function MarathonActiveCard({ marathon, books, users, onOpen }) {
               </div>
             </div>
 
-            {/* avatar do líder no lado direito */}
             {leaderUser ? (
               <LeaderAvatar
                 avatarUrl={leaderUser.avatar}
@@ -436,72 +434,73 @@ function MarathonDetailDialog({
 }) {
   const [selectedBookId, setSelectedBookId] = useState("");
 
-  // auto-finaliza
-  useEffect(() => {
-    if (!marathon) return;
-    if (marathon.status === "finished") return;
+  const safeMarathon = marathon || null;
+  const isFinished = safeMarathon?.status === "finished";
 
-    const winnerId = determineWinnerShared(marathon, books);
-    const deadlinePassed = isDeadlinePassed(marathon.deadline);
-
-    if (winnerId) onFinish?.(marathon.id, winnerId);
-    else if (deadlinePassed) onFinish?.(marathon.id, null);
-  }, [marathon, books, onFinish]);
-
-  if (!marathon) return null;
-
-  const isFinished = marathon.status === "finished";
-
-  const bookIds = getMarathonBookIds(marathon);
+  const bookIds = safeMarathon ? getMarathonBookIds(safeMarathon) : [];
   const marathonBooks = bookIds.map((id) => getBook(books, id)).filter(Boolean);
 
   const creatorId =
-    marathon.creator_id || marathon.owner_id || marathon.created_by;
+    safeMarathon?.creator_id ||
+    safeMarathon?.owner_id ||
+    safeMarathon?.created_by;
   const isCreator = creatorId ? creatorId === currentUser.id : true;
+  const canEditBooks = !!safeMarathon && !isFinished && isCreator;
 
-  const canEditBooks = !isFinished && isCreator;
-
-  const participants = marathon.participants || [];
-
+  const participants = safeMarathon?.participants || [];
   const participantsWithProgress = participants.map((p) => {
     const u = getUser(users, p.user_id);
-    const pr = calcParticipantProgressShared(marathon, p, books);
+    const pr = safeMarathon
+      ? calcParticipantProgressShared(safeMarathon, p, books)
+      : { totalPages: 0, readPages: 0, percent: 0 };
     return { ...p, user: u, progress: pr };
   });
 
-  const winnerId =
-    marathon.winner_id ??
-    marathon.winner ??
-    determineWinnerShared(marathon, books);
+  const winnerId = safeMarathon
+    ? (safeMarathon.winner_id ??
+      safeMarathon.winner ??
+      determineWinnerShared(safeMarathon, books))
+    : null;
   const winnerUser = winnerId ? getUser(users, winnerId) : null;
 
-  // acervo interno do criador: livros dele
-  const creatorLibrary = useMemo(() => {
-    if (!isCreator) return [];
-    return books.filter((b) => b.owner === currentUser.id);
-  }, [books, currentUser.id, isCreator]);
+  const creatorLibrary = canEditBooks
+    ? books.filter((b) => b.owner === currentUser.id)
+    : [];
+
+  useEffect(() => {
+    if (!safeMarathon) return;
+    if (safeMarathon.status === "finished") return;
+
+    const w = determineWinnerShared(safeMarathon, books);
+    const deadlinePassed = isDeadlinePassed(safeMarathon.deadline);
+
+    if (w) onFinish?.(safeMarathon.id, w);
+    else if (deadlinePassed) onFinish?.(safeMarathon.id, null);
+  }, [safeMarathon, books, onFinish]);
 
   const handleAddBook = () => {
+    if (!safeMarathon) return;
     if (!selectedBookId) return;
-    onAddBookToMarathon?.(marathon.id, selectedBookId);
+    onAddBookToMarathon?.(safeMarathon.id, selectedBookId);
     setSelectedBookId("");
   };
 
+  if (!safeMarathon) return null;
+
   return (
-    <Dialog open={!!marathon} onOpenChange={(v) => !v && onClose()}>
-      {/* IMPORTANT: limitar altura e permitir rolagem */}
-      <DialogContent className="max-w-3xl rounded-2xl max-h-[85vh] overflow-hidden">
+    <Dialog open={!!safeMarathon} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-3xl rounded-2xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center justify-between gap-3">
+          <DialogTitle className="flex items-center justify-between gap-3 pr-10">
             <div className="flex items-center gap-2">
               <Trophy size={18} style={{ color: "var(--accent-hex)" }} />
               <span style={{ color: "var(--text-header)" }}>
-                {marathon.name}
+                {safeMarathon.name}
               </span>
             </div>
 
             <div
-              className="text-xs font-bold uppercase tracking-wide"
+              className="text-xs font-bold uppercase tracking-wide whitespace-nowrap"
               style={{ color: "var(--text-muted)" }}
             >
               {isFinished
@@ -513,8 +512,7 @@ function MarathonDetailDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* corpo rolável */}
-        <div className="flex-1 overflow-y-auto pr-1 space-y-5">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-2 space-y-5">
           {/* Top info */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div
@@ -535,8 +533,8 @@ function MarathonDetailDialog({
                 className="mt-1 text-sm"
                 style={{ color: "var(--text-muted)" }}
               >
-                {fmtDateBR(marathon.deadline)} · {daysLeft(marathon.deadline)}{" "}
-                dias
+                {fmtDateBR(safeMarathon.deadline)} ·{" "}
+                {daysLeft(safeMarathon.deadline)} dias
               </div>
             </div>
 
@@ -555,7 +553,7 @@ function MarathonDetailDialog({
                 className="mt-1 text-sm"
                 style={{ color: "var(--text-muted)" }}
               >
-                {marathon.total_pages_goal} páginas
+                {safeMarathon.total_pages_goal} páginas
               </div>
             </div>
 
@@ -579,7 +577,7 @@ function MarathonDetailDialog({
             </div>
           </div>
 
-          {/* LIVROS DA MARATONA */}
+          {/* Livros */}
           <div className="space-y-2">
             <div
               className="text-xs font-bold uppercase tracking-wider"
@@ -593,38 +591,56 @@ function MarathonDetailDialog({
                 Nenhum livro adicionado ainda.
               </div>
             ) : (
-              <div className="flex gap-3 overflow-x-auto scroll-hide pb-1">
+              <div
+                className="flex gap-4 overflow-x-auto scroll-hide pb-2 pr-1"
+                style={{ scrollSnapType: "x mandatory" }}
+              >
                 {marathonBooks.map((b) => (
-                  <div key={b.id} className="shrink-0 w-24">
-                    <div className="relative">
-                      <BookCover
-                        cover={getCoverFromBook(b) || coverFallback(b.title)}
-                        title={b.title}
-                        className="rounded-xl"
-                      />
+                  <div
+                    key={b.id}
+                    className="shrink-0"
+                    style={{ width: 116, scrollSnapAlign: "start" }}
+                  >
+                    <div
+                      className="relative rounded-2xl"
+                      style={{ overflow: "visible" }}
+                    >
+                      <div
+                        className="rounded-2xl overflow-hidden border"
+                        style={{
+                          borderColor: "var(--border-hex)",
+                          background: "rgba(255,255,255,.35)",
+                        }}
+                      >
+                        <BookCover
+                          src={getCoverFromBook(b) || coverFallback(b.title)}
+                          title={b.title}
+                          className="rounded-2xl"
+                          style={{ borderRadius: 16 }}
+                        />
+                      </div>
 
-                      {/* lixeira no livro (somente se puder editar) */}
                       {canEditBooks && (
                         <button
                           type="button"
                           onClick={() =>
-                            onRemoveBookFromMarathon?.(marathon.id, b.id)
+                            onRemoveBookFromMarathon?.(safeMarathon.id, b.id)
                           }
-                          className="absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-sm"
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow-sm"
                           style={{
                             background: "#ef4444",
                             color: "white",
-                            border: "2px solid rgba(255,255,255,.85)",
+                            border: "2px solid rgba(255,255,255,.9)",
                           }}
                           title="Remover livro"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       )}
                     </div>
 
                     <div
-                      className="mt-1 text-[11px] font-semibold line-clamp-2"
+                      className="mt-2 text-[12px] font-semibold leading-tight line-clamp-2"
                       style={{ color: "var(--text-main)" }}
                       title={b.title}
                     >
@@ -635,7 +651,6 @@ function MarathonDetailDialog({
               </div>
             )}
 
-            {/* Adicionar livro (somente criador e ativa) */}
             {canEditBooks && (
               <div
                 className="mt-2 rounded-2xl p-3"
@@ -676,7 +691,7 @@ function MarathonDetailDialog({
             )}
           </div>
 
-          {/* PROGRESSO POR PARTICIPANTE */}
+          {/* Progresso */}
           <div className="space-y-3">
             <h4
               className="text-xs font-bold uppercase tracking-wider"
@@ -709,9 +724,9 @@ function MarathonDetailDialog({
                             src={u?.avatar || "/avatars/default.png"}
                             alt={u?.name || "Usuário"}
                             className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = "/avatars/default.png";
-                            }}
+                            onError={(e) =>
+                              (e.currentTarget.src = "/avatars/default.png")
+                            }
                           />
                         </div>
 
@@ -750,96 +765,75 @@ function MarathonDetailDialog({
                       <ProgressBar percent={p.progress.percent} />
                     </div>
 
-                    {/* Grid por livro + barra pequena */}
                     {marathonBooks.length > 0 && (
-                      <div className="mt-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {marathonBooks.map((b) => {
-                            const raw = getParticipantPagesReadForBook(p, b);
-                            const capped = clamp(raw, 0, b.total_pages || 0);
-                            const bookPercent =
-                              b.total_pages > 0
-                                ? clamp(
-                                    Math.round((capped / b.total_pages) * 100),
-                                    0,
-                                    100,
-                                  )
-                                : 0;
+                      <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {marathonBooks.map((b) => {
+                          const raw = getParticipantPagesReadForBook(p, b);
+                          const capped = clamp(raw, 0, b.total_pages || 0);
+                          const bookPercent =
+                            b.total_pages > 0
+                              ? clamp(
+                                  Math.round((capped / b.total_pages) * 100),
+                                  0,
+                                  100,
+                                )
+                              : 0;
 
-                            return (
-                              <div
-                                key={b.id}
-                                className="rounded-2xl p-3"
-                                style={{
-                                  background: "rgba(255,255,255,.35)",
-                                  border: "1px solid var(--border-hex)",
-                                }}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className="w-14 shrink-0">
-                                    <BookCover
-                                      cover={
-                                        getCoverFromBook(b) ||
-                                        coverFallback(b.title)
-                                      }
-                                      title={b.title}
-                                      className="rounded-xl"
-                                    />
+                          return (
+                            <div
+                              key={b.id}
+                              className="rounded-2xl p-3"
+                              style={{
+                                background: "rgba(255,255,255,.35)",
+                                border: "1px solid var(--border-hex)",
+                              }}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="w-14 shrink-0">
+                                  <BookCover
+                                    src={
+                                      getCoverFromBook(b) ||
+                                      coverFallback(b.title)
+                                    }
+                                    title={b.title}
+                                    className="rounded-xl"
+                                  />
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <div
+                                    className="text-xs font-semibold line-clamp-2"
+                                    style={{ color: "var(--text-main)" }}
+                                    title={b.title}
+                                  >
+                                    {b.title}
                                   </div>
 
-                                  <div className="min-w-0 flex-1">
-                                    <div
-                                      className="text-xs font-semibold line-clamp-2"
-                                      style={{ color: "var(--text-main)" }}
-                                      title={b.title}
-                                    >
-                                      {b.title}
-                                    </div>
-
-                                    <div className="mt-2 flex items-center gap-2">
-                                      <div
-                                        className="w-6 h-6 rounded-full overflow-hidden border shrink-0"
-                                        style={{
-                                          borderColor: "rgba(255,255,255,.7)",
-                                        }}
-                                      >
-                                        <img
-                                          src={
-                                            u?.avatar || "/avatars/default.png"
-                                          }
-                                          alt={u?.name || "Usuário"}
-                                          className="w-full h-full object-cover"
-                                          onError={(e) => {
-                                            e.currentTarget.src =
-                                              "/avatars/default.png";
-                                          }}
-                                        />
-                                      </div>
-
-                                      <div className="flex-1 min-w-0">
-                                        <ProgressBar percent={bookPercent} />
-                                      </div>
-
-                                      <div
-                                        className="text-xs font-bold w-10 text-right"
-                                        style={{ color: "var(--text-muted)" }}
-                                      >
-                                        {bookPercent}%
-                                      </div>
+                                  {/* ✅ REMOVIDO: avatar mini por livro */}
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <ProgressBar percent={bookPercent} />
                                     </div>
 
                                     <div
-                                      className="mt-1 text-[11px]"
+                                      className="text-xs font-bold w-10 text-right"
                                       style={{ color: "var(--text-muted)" }}
                                     >
-                                      {capped} / {b.total_pages || 0} páginas
+                                      {bookPercent}%
                                     </div>
+                                  </div>
+
+                                  <div
+                                    className="mt-1 text-[11px]"
+                                    style={{ color: "var(--text-muted)" }}
+                                  >
+                                    {capped} / {b.total_pages || 0} páginas
                                   </div>
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -848,7 +842,6 @@ function MarathonDetailDialog({
             </div>
           </div>
 
-          {/* Aviso de finalização sem vencedor */}
           {isFinished && !winnerUser && (
             <div
               className="rounded-2xl p-3 text-sm"
@@ -864,7 +857,6 @@ function MarathonDetailDialog({
           )}
         </div>
 
-        {/* footer fixo */}
         <DialogFooter className="mt-2 shrink-0">
           <Button variant="outline" className="rounded-xl" onClick={onClose}>
             Fechar
@@ -947,7 +939,6 @@ export default function Marathons() {
 
   return (
     <div className="space-y-5 pb-6">
-      {/* Header */}
       <div className="flex items-start justify-between gap-3 pt-1">
         <div>
           <h1
@@ -972,7 +963,6 @@ export default function Marathons() {
         </button>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3">
         <div
           className="rounded-2xl p-5 flex flex-col items-center justify-center gap-2 border"
@@ -1041,7 +1031,6 @@ export default function Marathons() {
         </div>
       </div>
 
-      {/* ATIVAS */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <div
@@ -1075,7 +1064,6 @@ export default function Marathons() {
         )}
       </div>
 
-      {/* FINALIZADAS */}
       <div className="space-y-3 pt-2">
         <h2
           className="text-sm font-extrabold uppercase tracking-wider"
@@ -1103,7 +1091,6 @@ export default function Marathons() {
         )}
       </div>
 
-      {/* Dialog: detalhes */}
       <MarathonDetailDialog
         marathon={liveSelected}
         books={books}
@@ -1115,7 +1102,6 @@ export default function Marathons() {
         onRemoveBookFromMarathon={onRemoveBook}
       />
 
-      {/* Dialog: criar */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>

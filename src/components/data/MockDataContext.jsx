@@ -174,7 +174,7 @@ const BOOKS_DATA = [
     month_read: "Mar",
   },
 
-  // Ana Flávia
+  // Ana Flávia (acervo dela)
   {
     id: "b11",
     title: "Crepúsculo",
@@ -265,9 +265,12 @@ const MARATHONS_DATA = [
     status: "active",
     created_at: "2026-02-01",
     deadline: "2026-04-30",
-    total_pages_goal: 1200, // pode manter como "meta declarada", mas progresso real vem dos livros
+    total_pages_goal: 1200,
     creator_id: "u1",
-    book_ids: ["b2", "b7", "b13"],
+
+    // ✅ IMPORTANTE: use livros do acervo da criadora no seed (u1)
+    // antes tinha b13 (Pink Lemonade da u2) e isso confundia o "duplicado"
+    book_ids: ["b2", "b7", "b5"],
 
     participants: [
       {
@@ -276,7 +279,7 @@ const MARATHONS_DATA = [
         book_progress: {
           b2: 180,
           b7: 120,
-          b13: 0,
+          b5: 0,
         },
       },
       {
@@ -285,7 +288,7 @@ const MARATHONS_DATA = [
         book_progress: {
           b2: 352,
           b7: 0,
-          b13: 140,
+          b5: 140,
         },
       },
     ],
@@ -410,6 +413,16 @@ function getBookById(books, id) {
   return books.find((b) => b.id === id);
 }
 
+function normalizeBookKey(book) {
+  const t = String(book?.title || "")
+    .trim()
+    .toLowerCase();
+  const a = String(book?.author || "")
+    .trim()
+    .toLowerCase();
+  return `${t}__${a}`;
+}
+
 function getMarathonTotalPagesFromBooks(marathon, books) {
   const ids = marathon.book_ids || [];
   return ids.reduce((sum, bid) => {
@@ -439,8 +452,6 @@ function getParticipantPercent(marathon, participant, books) {
 }
 
 function determineWinnerId(marathon, books) {
-  // vencedor = primeiro que chegar a 100%.
-  // Sem histórico temporal, pegamos quem tem maior leitura e >=100.
   const total = getMarathonTotalPagesFromBooks(marathon, books);
   if (total <= 0) return null;
 
@@ -472,8 +483,6 @@ export function MockDataProvider({ children }) {
 
   // ─────────────────────────────────────────────────────────────
   // AUTO-FINISH (correto)
-  // - se alguém completar 100% -> finaliza com winner_id
-  // - se prazo passar e ninguém completou -> finaliza sem vencedor (winner_id = null)
   useEffect(() => {
     setMarathons((prev) =>
       prev.map((m) => {
@@ -538,7 +547,6 @@ export function MockDataProvider({ children }) {
   const removeBook = useCallback((bookId) => {
     setBooks((prev) => prev.filter((b) => b.id !== bookId));
 
-    // também remove o livro de maratonas (da lista book_ids e do progresso)
     setMarathons((prev) =>
       prev.map((m) => {
         const has = (m.book_ids || []).includes(bookId);
@@ -607,7 +615,6 @@ export function MockDataProvider({ children }) {
               trophies: 0,
               book_progress: {},
             },
-            // Fase 1: já deixa Ana Flávia participando (como você pediu)
             {
               user_id: "u2",
               trophies: 0,
@@ -616,17 +623,13 @@ export function MockDataProvider({ children }) {
           ],
 
           winner_id: null,
-          winner: null, // compat
+          winner: null,
         },
       ]);
     },
     [currentUser.id],
   );
 
-  /**
-   * finishMarathon(marathonId, winnerIdOrNull)
-   * - winnerIdOrNull pode ser null (prazo acabou sem vencedor)
-   */
   const finishMarathon = useCallback((marathonId, winnerIdOrNull) => {
     setMarathons((prev) =>
       prev.map((m) => {
@@ -639,7 +642,7 @@ export function MockDataProvider({ children }) {
           ...m,
           status: "finished",
           winner_id: winnerId,
-          winner: winnerId, // compat
+          winner: winnerId,
           participants: (m.participants || []).map((p) =>
             winnerId && p.user_id === winnerId
               ? { ...p, trophies: (p.trophies || 0) + 1 }
@@ -651,40 +654,51 @@ export function MockDataProvider({ children }) {
   }, []);
 
   /**
-   * Adiciona um livro à maratona (livro compartilhado).
-   * - só faz sentido em maratona ativa (você controla na UI)
-   * - adiciona em book_ids (sem duplicar)
-   * - inicializa progresso 0 para todos os participantes
+   * ✅ Adiciona um livro à maratona (livro compartilhado).
+   * - sem duplicar por ID
+   * - e sem “duplicar por título+autor” (mesmo que outro usuário tenha outro ID igual)
    */
-  const addBookToMarathon = useCallback((marathonId, bookId) => {
-    setMarathons((prev) =>
-      prev.map((m) => {
-        if (m.id !== marathonId) return m;
-        if (m.status !== "active") return m;
+  const addBookToMarathon = useCallback(
+    (marathonId, bookId) => {
+      setMarathons((prev) =>
+        prev.map((m) => {
+          if (m.id !== marathonId) return m;
+          if (m.status !== "active") return m;
 
-        const exists = (m.book_ids || []).includes(bookId);
-        if (exists) return m;
+          // 1) evita duplicar por ID
+          const existsId = (m.book_ids || []).includes(bookId);
+          if (existsId) return m;
 
-        return {
-          ...m,
-          book_ids: [...(m.book_ids || []), bookId],
-          participants: (m.participants || []).map((p) => ({
-            ...p,
-            book_progress: {
-              ...(p.book_progress || {}),
-              [bookId]: 0,
-            },
-          })),
-        };
-      }),
-    );
-  }, []);
+          const candidate = getBookById(books, bookId);
+          if (!candidate) return m;
 
-  /**
-   * Remove um livro da maratona (livro compartilhado).
-   * - remove de book_ids
-   * - remove também de book_progress de todos
-   */
+          // 2) evita duplicar por "chave" (title+author)
+          const candidateKey = normalizeBookKey(candidate);
+          const existingKeys = (m.book_ids || [])
+            .map((id) => getBookById(books, id))
+            .filter(Boolean)
+            .map(normalizeBookKey);
+
+          const existsByKey = existingKeys.includes(candidateKey);
+          if (existsByKey) return m;
+
+          return {
+            ...m,
+            book_ids: [...(m.book_ids || []), bookId],
+            participants: (m.participants || []).map((p) => ({
+              ...p,
+              book_progress: {
+                ...(p.book_progress || {}),
+                [bookId]: 0,
+              },
+            })),
+          };
+        }),
+      );
+    },
+    [books],
+  );
+
   const removeBookFromMarathon = useCallback((marathonId, bookId) => {
     setMarathons((prev) =>
       prev.map((m) => {
@@ -706,10 +720,6 @@ export function MockDataProvider({ children }) {
     );
   }, []);
 
-  /**
-   * Atualiza progresso de um participante em um livro específico da maratona.
-   * (Útil depois quando você quiser interface de atualizar leitura dentro da maratona)
-   */
   const updateMarathonBookProgress = useCallback(
     (marathonId, userId, bookId, pagesRead) => {
       setMarathons((prev) =>
@@ -761,14 +771,17 @@ export function MockDataProvider({ children }) {
     (uid) => books.filter((b) => b.owner === uid),
     [books],
   );
+
   const getUserShelves = useCallback(
     (uid) => shelves.filter((s) => s.owner === uid),
     [shelves],
   );
+
   const getUser = useCallback(
     (uid) => users.find((u) => u.id === uid),
     [users],
   );
+
   const getFriends = useCallback(
     () => users.filter((u) => u.id !== currentUser.id),
     [users, currentUser.id],
@@ -837,7 +850,6 @@ export function MockDataProvider({ children }) {
     createMarathon,
     finishMarathon,
 
-    // ✅ novos/ajustados (maratona correta)
     addBookToMarathon,
     removeBookFromMarathon,
     updateMarathonBookProgress,
