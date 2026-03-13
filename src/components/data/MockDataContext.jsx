@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useMemo,
 } from "react";
 
 // ─── STATIC DATA ──────────────────────────────────────────────
@@ -38,15 +39,166 @@ const COVERS = {
 
 const FALLBACK = (title) =>
   `https://via.placeholder.com/200x300/C13B75/FFFFFF?text=${encodeURIComponent(
-    title.slice(0, 12),
+    (title || "Livro").slice(0, 12),
   )}`;
 
+/**
+ * ✅ CATALOG (banco interno do app)
+ * Campos:
+ * obrigatórios: title, author, publisher, released(boolean), release_year(if released), category(ebook|livro_fisico|fanfic)
+ * opcionais: subtitle, isbn, synopsis, synopsis_short, genre, total_pages, tropes[]
+ */
+const CATALOG_DATA = [
+  {
+    id: "c1",
+    title: "Estrela da Sorte",
+    subtitle: "",
+    author: "Alexandria Bellefleur",
+    publisher: "—",
+    cover_url: COVERS["estrela-sorte"] || FALLBACK("Estrela"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 368,
+    tropes: [],
+    synopsis: "",
+    synopsis_short: "",
+    isbn: "",
+  },
+  {
+    id: "c2",
+    title: "Presságios do Amor",
+    author: "Alexandria Bellefleur",
+    publisher: "—",
+    cover_url: COVERS["pressagios"] || FALLBACK("Presságios"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 352,
+    tropes: [],
+  },
+  {
+    id: "c3",
+    title: "Astrid Parker Nunca Falha",
+    author: "Ashley Herring Blake",
+    publisher: "—",
+    cover_url: COVERS["astrid"] || FALLBACK("Astrid"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 384,
+    tropes: [],
+  },
+  {
+    id: "c4",
+    title: "Delilah Green Não Está Nem Aí",
+    author: "Ashley Herring Blake",
+    publisher: "—",
+    cover_url: COVERS["delilah"] || FALLBACK("Delilah"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 368,
+    tropes: [],
+  },
+  {
+    id: "c5",
+    title: "Pink Lemonade",
+    author: "G. B. Baldassari",
+    publisher: "—",
+    cover_url: COVERS["pink-lemonade"] || FALLBACK("Pink"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 280,
+    tropes: [],
+  },
+  {
+    id: "c6",
+    title: "Diário de Bordo de uma Impostora",
+    author: "G. B. Baldassari",
+    publisher: "—",
+    cover_url: COVERS["diario"] || FALLBACK("Diário"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 264,
+    tropes: [],
+  },
+  {
+    id: "c7",
+    title: "A Princesa e o Cappuccino",
+    author: "G. B. Baldassari",
+    publisher: "—",
+    cover_url: COVERS["princesa"] || FALLBACK("Princesa"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 256,
+    tropes: [],
+  },
+  {
+    id: "c8",
+    title: "Uma Pitada de Sorte",
+    author: "G. B. Baldassari",
+    publisher: "—",
+    cover_url: COVERS["pitada"] || FALLBACK("Pitada"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 272,
+    tropes: [],
+  },
+  {
+    id: "c9",
+    title: "Amor Fati",
+    author: "G. B. Baldassari",
+    publisher: "—",
+    cover_url: COVERS["amor-fati"] || FALLBACK("Amor"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2024,
+    genre: "Romance",
+    total_pages: 288,
+    tropes: [],
+  },
+  {
+    id: "c10",
+    title: "Crepúsculo",
+    author: "Stephenie Meyer",
+    publisher: "—",
+    cover_url: COVERS["crepusculo"] || FALLBACK("Crepúsculo"),
+    category: "livro_fisico",
+    released: true,
+    release_year: 2005,
+    genre: "Fantasia",
+    total_pages: 498,
+    tropes: ["vampiros"],
+  },
+];
+
+/**
+ * ✅ MEU ACERVO (por usuário) – mantém compat com o que você já usa no app
+ * Além do que já existe, adicionamos:
+ * - catalog_id (liga no banco)
+ * - category / genre / released / release_year / publisher (pra filtros)
+ */
 const BOOKS_DATA = [
-  // Ana Caroline
+  // Ana Caroline (u1)
   {
     id: "b1",
+    catalog_id: "c1",
     title: "Estrela da Sorte",
     author: "Alexandria Bellefleur",
+    publisher: "—",
     cover_url: COVERS["estrela-sorte"] || FALLBACK("Estrela"),
     total_pages: 368,
     pages_read: 368,
@@ -55,11 +207,18 @@ const BOOKS_DATA = [
     shelf_id: "s1",
     owner: "u1",
     month_read: "Jan",
+    category: "livro_fisico",
+    genre: "Romance",
+    released: true,
+    release_year: 2024,
+    tropes: [],
   },
   {
     id: "b2",
+    catalog_id: "c2",
     title: "Presságios do Amor",
     author: "Alexandria Bellefleur",
+    publisher: "—",
     cover_url: COVERS["pressagios"] || FALLBACK("Presságios"),
     total_pages: 352,
     pages_read: 180,
@@ -68,11 +227,18 @@ const BOOKS_DATA = [
     shelf_id: "s1",
     owner: "u1",
     month_read: null,
+    category: "livro_fisico",
+    genre: "Romance",
+    released: true,
+    release_year: 2024,
+    tropes: [],
   },
   {
     id: "b3",
+    catalog_id: "c3",
     title: "Astrid Parker Nunca Falha",
     author: "Ashley Herring Blake",
+    publisher: "—",
     cover_url: COVERS["astrid"] || FALLBACK("Astrid"),
     total_pages: 384,
     pages_read: 384,
@@ -81,11 +247,18 @@ const BOOKS_DATA = [
     shelf_id: "s1",
     owner: "u1",
     month_read: "Fev",
+    category: "livro_fisico",
+    genre: "Romance",
+    released: true,
+    release_year: 2024,
+    tropes: [],
   },
   {
     id: "b4",
+    catalog_id: "c4",
     title: "Delilah Green Não Está Nem Aí",
     author: "Ashley Herring Blake",
+    publisher: "—",
     cover_url: COVERS["delilah"] || FALLBACK("Delilah"),
     total_pages: 368,
     pages_read: 0,
@@ -94,11 +267,18 @@ const BOOKS_DATA = [
     shelf_id: "s2",
     owner: "u1",
     month_read: null,
+    category: "livro_fisico",
+    genre: "Romance",
+    released: true,
+    release_year: 2024,
+    tropes: [],
   },
   {
     id: "b5",
+    catalog_id: "c5",
     title: "Pink Lemonade",
     author: "G. B. Baldassari",
+    publisher: "—",
     cover_url: COVERS["pink-lemonade"] || FALLBACK("Pink"),
     total_pages: 280,
     pages_read: 280,
@@ -107,78 +287,20 @@ const BOOKS_DATA = [
     shelf_id: "s1",
     owner: "u1",
     month_read: "Jan",
-  },
-  {
-    id: "b6",
-    title: "Diário de Bordo de uma Impostora",
-    author: "G. B. Baldassari",
-    cover_url: COVERS["diario"] || FALLBACK("Diário"),
-    total_pages: 264,
-    pages_read: 264,
-    status: "lido",
-    rating: 4,
-    shelf_id: "s1",
-    owner: "u1",
-    month_read: "Mar",
-  },
-  {
-    id: "b7",
-    title: "A Princesa e o Cappuccino",
-    author: "G. B. Baldassari",
-    cover_url: COVERS["princesa"] || FALLBACK("Princesa"),
-    total_pages: 256,
-    pages_read: 120,
-    status: "lendo",
-    rating: 0,
-    shelf_id: "s2",
-    owner: "u1",
-    month_read: null,
-  },
-  {
-    id: "b8",
-    title: "Uma Pitada de Sorte",
-    author: "G. B. Baldassari",
-    cover_url: COVERS["pitada"] || FALLBACK("Pitada"),
-    total_pages: 272,
-    pages_read: 0,
-    status: "quero_ler",
-    rating: 0,
-    shelf_id: "s2",
-    owner: "u1",
-    month_read: null,
-  },
-  {
-    id: "b9",
-    title: "Amor Fati",
-    author: "G. B. Baldassari",
-    cover_url: COVERS["amor-fati"] || FALLBACK("Amor"),
-    total_pages: 288,
-    pages_read: 288,
-    status: "lido",
-    rating: 5,
-    shelf_id: "s1",
-    owner: "u1",
-    month_read: "Fev",
-  },
-  {
-    id: "b10",
-    title: "Crepúsculo",
-    author: "Stephenie Meyer",
-    cover_url: COVERS["crepusculo"] || FALLBACK("Crepúsculo"),
-    total_pages: 498,
-    pages_read: 498,
-    status: "lido",
-    rating: 5,
-    shelf_id: "s1",
-    owner: "u1",
-    month_read: "Mar",
+    category: "livro_fisico",
+    genre: "Romance",
+    released: true,
+    release_year: 2024,
+    tropes: [],
   },
 
-  // Ana Flávia (acervo dela)
+  // Ana Flávia (u2)
   {
     id: "b11",
+    catalog_id: "c10",
     title: "Crepúsculo",
     author: "Stephenie Meyer",
+    publisher: "—",
     cover_url: COVERS["crepusculo"] || FALLBACK("Crepúsculo"),
     total_pages: 498,
     pages_read: 498,
@@ -187,58 +309,11 @@ const BOOKS_DATA = [
     shelf_id: "s3",
     owner: "u2",
     month_read: "Jan",
-  },
-  {
-    id: "b12",
-    title: "Estrela da Sorte",
-    author: "Alexandria Bellefleur",
-    cover_url: COVERS["estrela-sorte"] || FALLBACK("Estrela"),
-    total_pages: 368,
-    pages_read: 368,
-    status: "lido",
-    rating: 4,
-    shelf_id: "s3",
-    owner: "u2",
-    month_read: "Jan",
-  },
-  {
-    id: "b13",
-    title: "Pink Lemonade",
-    author: "G. B. Baldassari",
-    cover_url: COVERS["pink-lemonade"] || FALLBACK("Pink"),
-    total_pages: 280,
-    pages_read: 140,
-    status: "lendo",
-    rating: 0,
-    shelf_id: "s3",
-    owner: "u2",
-    month_read: null,
-  },
-  {
-    id: "b14",
-    title: "Amor Fati",
-    author: "G. B. Baldassari",
-    cover_url: COVERS["amor-fati"] || FALLBACK("Amor"),
-    total_pages: 288,
-    pages_read: 288,
-    status: "lido",
-    rating: 5,
-    shelf_id: "s3",
-    owner: "u2",
-    month_read: "Fev",
-  },
-  {
-    id: "b15",
-    title: "Presságios do Amor",
-    author: "Alexandria Bellefleur",
-    cover_url: COVERS["pressagios"] || FALLBACK("Presságios"),
-    total_pages: 352,
-    pages_read: 352,
-    status: "lido",
-    rating: 4,
-    shelf_id: "s3",
-    owner: "u2",
-    month_read: "Mar",
+    category: "livro_fisico",
+    genre: "Fantasia",
+    released: true,
+    release_year: 2005,
+    tropes: ["vampiros"],
   },
 ];
 
@@ -246,154 +321,6 @@ const SHELVES_DATA = [
   { id: "s1", name: "Favoritos", owner: "u1", created_date: "2024-01-15" },
   { id: "s2", name: "Para Ler", owner: "u1", created_date: "2024-02-20" },
   { id: "s3", name: "Meus Livros", owner: "u2", created_date: "2024-01-10" },
-];
-
-/**
- * NOVO MODELO (correto):
- * - book_ids: lista de livros da maratona (compartilhados)
- * - participants[].book_progress: { [bookId]: pagesRead }
- * - participants[].trophies: troféus acumulados
- * - creator_id: quem criou (pode editar livros se status active)
- * - winner_id: vencedor (ou null quando prazo acaba sem vencedor)
- *
- * Mantemos compatibilidade com "winner" (antigo) para não quebrar telas.
- */
-const MARATHONS_DATA = [
-  {
-    id: "m1",
-    name: "Maratona de Verão",
-    status: "active",
-    created_at: "2026-02-01",
-    deadline: "2026-04-30",
-    total_pages_goal: 1200,
-    creator_id: "u1",
-
-    // ✅ IMPORTANTE: use livros do acervo da criadora no seed (u1)
-    // antes tinha b13 (Pink Lemonade da u2) e isso confundia o "duplicado"
-    book_ids: ["b2", "b7", "b5"],
-
-    participants: [
-      {
-        user_id: "u1",
-        trophies: 0,
-        book_progress: {
-          b2: 180,
-          b7: 120,
-          b5: 0,
-        },
-      },
-      {
-        user_id: "u2",
-        trophies: 0,
-        book_progress: {
-          b2: 352,
-          b7: 0,
-          b5: 140,
-        },
-      },
-    ],
-
-    winner_id: null,
-    winner: null,
-  },
-  {
-    id: "m2",
-    name: "Desafio Romance",
-    status: "finished",
-    created_at: "2025-10-01",
-    deadline: "2025-12-31",
-    total_pages_goal: 1146,
-    creator_id: "u1",
-    book_ids: ["b1", "b5", "b11"],
-
-    participants: [
-      {
-        user_id: "u1",
-        trophies: 1,
-        book_progress: {
-          b1: 368,
-          b5: 280,
-          b11: 498,
-        },
-      },
-      {
-        user_id: "u2",
-        trophies: 0,
-        book_progress: {
-          b1: 368,
-          b5: 140,
-          b11: 498,
-        },
-      },
-    ],
-
-    winner_id: "u1",
-    winner: "u1",
-  },
-];
-
-const BADGES_DATA = [
-  {
-    id: "bg1",
-    name: "Primeira Leitura",
-    symbol: "I",
-    description: "Completou seu primeiro livro",
-  },
-  {
-    id: "bg2",
-    name: "Devoradora",
-    symbol: "II",
-    description: "Leu 5 livros em sequência",
-  },
-  {
-    id: "bg3",
-    name: "Maratonista",
-    symbol: "III",
-    description: "Participou de uma maratona",
-  },
-  {
-    id: "bg4",
-    name: "Crítica Literária",
-    symbol: "IV",
-    description: "Avaliou 5 livros",
-  },
-  {
-    id: "bg5",
-    name: "Vencedora",
-    symbol: "V",
-    description: "Venceu uma maratona",
-  },
-];
-
-const CHAT_MESSAGES_DATA = [
-  {
-    id: "c1",
-    from: "u1",
-    to: "u2",
-    content: "Bom dia, amor",
-    timestamp: "2026-02-27T10:30:00",
-  },
-  {
-    id: "c2",
-    from: "u2",
-    to: "u1",
-    content: "bom dia gatinha",
-    timestamp: "2026-02-27T10:32:00",
-  },
-  {
-    id: "c3",
-    from: "u1",
-    to: "u2",
-    content: "Te aaaamoo",
-    timestamp: "2026-02-27T10:35:00",
-  },
-  {
-    id: "c4",
-    from: "u2",
-    to: "u1",
-    content: "te amo",
-    timestamp: "2026-02-27T10:36:00",
-  },
 ];
 
 // ─── INTERNAL HELPERS ─────────────────────────────────────────
@@ -411,16 +338,6 @@ function deadlinePassed(deadline) {
 
 function getBookById(books, id) {
   return books.find((b) => b.id === id);
-}
-
-function normalizeBookKey(book) {
-  const t = String(book?.title || "")
-    .trim()
-    .toLowerCase();
-  const a = String(book?.author || "")
-    .trim()
-    .toLowerCase();
-  return `${t}__${a}`;
 }
 
 function getMarathonTotalPagesFromBooks(marathon, books) {
@@ -464,10 +381,62 @@ function determineWinnerId(marathon, books) {
     .filter((x) => x.pct >= 100);
 
   if (done.length === 0) return null;
-
   done.sort((a, b) => b.read - a.read);
   return done[0].user_id || null;
 }
+
+/**
+ * Seus dados de maratona (mantidos)
+ * Obs: seguem usando book_ids do "meu acervo", como você já estava fazendo.
+ */
+const MARATHONS_DATA = [
+  {
+    id: "m1",
+    name: "Maratona de Verão",
+    status: "active",
+    created_at: "2026-02-01",
+    deadline: "2026-04-30",
+    total_pages_goal: 1200,
+    creator_id: "u1",
+    book_ids: ["b2", "b5"],
+
+    participants: [
+      {
+        user_id: "u1",
+        trophies: 0,
+        book_progress: {
+          b2: 180,
+          b5: 0,
+        },
+      },
+      {
+        user_id: "u2",
+        trophies: 0,
+        book_progress: {
+          b2: 352,
+          b5: 140,
+        },
+      },
+    ],
+
+    winner_id: null,
+    winner: null,
+  },
+];
+
+const BADGES_DATA = [
+  { id: "bg1", name: "Primeira Leitura", symbol: "I", description: "..." },
+];
+
+const CHAT_MESSAGES_DATA = [
+  {
+    id: "c1",
+    from: "u1",
+    to: "u2",
+    content: "Bom dia, amor",
+    timestamp: "2026-02-27T10:30:00",
+  },
+];
 
 // ─── CONTEXT ──────────────────────────────────────────────────
 const MockDataContext = createContext(null);
@@ -475,14 +444,20 @@ const MockDataContext = createContext(null);
 export function MockDataProvider({ children }) {
   const [currentUser] = useState(USERS[0]);
   const [users] = useState(USERS);
+
+  // ✅ Banco interno (global)
+  const [catalogBooks, setCatalogBooks] = useState(CATALOG_DATA);
+
+  // ✅ Acervo do usuário (compat com o app)
   const [books, setBooks] = useState(BOOKS_DATA);
+
   const [shelves, setShelves] = useState(SHELVES_DATA);
   const [marathons, setMarathons] = useState(MARATHONS_DATA);
   const [badges] = useState(BADGES_DATA);
   const [messages, setMessages] = useState(CHAT_MESSAGES_DATA);
 
   // ─────────────────────────────────────────────────────────────
-  // AUTO-FINISH (correto)
+  // AUTO-FINISH (mantido)
   useEffect(() => {
     setMarathons((prev) =>
       prev.map((m) => {
@@ -496,7 +471,7 @@ export function MockDataProvider({ children }) {
             ...m,
             status: "finished",
             winner_id: winnerId,
-            winner: winnerId, // compat
+            winner: winnerId,
             participants: (m.participants || []).map((p) =>
               p.user_id === winnerId
                 ? { ...p, trophies: (p.trophies || 0) + 1 }
@@ -519,15 +494,23 @@ export function MockDataProvider({ children }) {
     );
   }, [books]);
 
-  // ── Book operations ──────────────────────────────────────────
+  // ── Book operations (meu acervo) ──────────────────────────────
   const updateBookProgress = useCallback((bookId, pagesRead) => {
     setBooks((prev) =>
       prev.map((b) => {
         if (b.id !== bookId) return b;
-        const clamped = Math.min(Math.max(0, pagesRead), b.total_pages);
+        const clampedPages = Math.min(
+          Math.max(0, pagesRead),
+          b.total_pages || 0,
+        );
         const newStatus =
-          clamped >= b.total_pages ? "lido" : clamped > 0 ? "lendo" : b.status;
-        return { ...b, pages_read: clamped, status: newStatus };
+          clampedPages >= (b.total_pages || 0)
+            ? "lido"
+            : clampedPages > 0
+              ? "lendo"
+              : b.status;
+
+        return { ...b, pages_read: clampedPages, status: newStatus };
       }),
     );
   }, []);
@@ -544,9 +527,13 @@ export function MockDataProvider({ children }) {
     );
   }, []);
 
+  /**
+   * removeBook = remove do MEU ACERVO (não apaga do banco global)
+   */
   const removeBook = useCallback((bookId) => {
     setBooks((prev) => prev.filter((b) => b.id !== bookId));
 
+    // também remove o livro de maratonas (da lista book_ids e do progresso)
     setMarathons((prev) =>
       prev.map((m) => {
         const has = (m.book_ids || []).includes(bookId);
@@ -594,7 +581,127 @@ export function MockDataProvider({ children }) {
     setBooks((prev) => prev.filter((b) => b.shelf_id !== shelfId));
   }, []);
 
-  // ── Marathon operations ──────────────────────────────────────
+  // ── Catalog operations ───────────────────────────────────────
+  /**
+   * Cria um livro no BANCO INTERNO (global).
+   * Se addToLibrary = true, adiciona também no acervo do usuário.
+   */
+  const createCatalogBook = useCallback(
+    (data, { addToLibrary = true } = {}) => {
+      const id = "c" + Date.now();
+
+      const catalogItem = {
+        id,
+        title: data.title,
+        subtitle: data.subtitle || "",
+        author: data.author,
+        publisher: data.publisher,
+        cover_url: data.cover_url || FALLBACK(data.title),
+        category: data.category, // ebook | livro_fisico | fanfic
+        released: Boolean(data.released),
+        release_year: data.released
+          ? Number(data.release_year || new Date().getFullYear())
+          : null,
+        genre: data.genre || "",
+        total_pages: data.total_pages ? Number(data.total_pages) : null,
+        isbn: data.isbn || "",
+        synopsis: data.synopsis || "",
+        synopsis_short: data.synopsis_short || "",
+        tropes: Array.isArray(data.tropes) ? data.tropes : [],
+        created_by: currentUser.id,
+        created_at: new Date().toISOString(),
+      };
+
+      setCatalogBooks((prev) => [catalogItem, ...prev]);
+
+      if (addToLibrary) {
+        // adiciona no meu acervo
+        setBooks((prev) => {
+          const already = prev.some(
+            (b) => b.owner === currentUser.id && b.catalog_id === id,
+          );
+          if (already) return prev;
+
+          const libBookId = "b" + Date.now();
+          return [
+            {
+              id: libBookId,
+              catalog_id: id,
+              owner: currentUser.id,
+              shelf_id: "",
+              status: "quero_ler",
+              rating: 0,
+              pages_read: 0,
+              month_read: null,
+
+              // espelha dados do catálogo
+              title: catalogItem.title,
+              author: catalogItem.author,
+              publisher: catalogItem.publisher,
+              cover_url: catalogItem.cover_url,
+              total_pages: catalogItem.total_pages || 0,
+              category: catalogItem.category,
+              genre: catalogItem.genre || "",
+              released: catalogItem.released,
+              release_year: catalogItem.release_year,
+              tropes: catalogItem.tropes || [],
+            },
+            ...prev,
+          ];
+        });
+      }
+
+      return id;
+    },
+    [currentUser.id],
+  );
+
+  /**
+   * Adiciona um item do catálogo ao acervo do usuário (sem duplicar).
+   */
+  const addCatalogBookToLibrary = useCallback(
+    (catalogId) => {
+      const item = catalogBooks.find((c) => c.id === catalogId);
+      if (!item) return;
+
+      setBooks((prev) => {
+        const already = prev.some(
+          (b) => b.owner === currentUser.id && b.catalog_id === catalogId,
+        );
+        if (already) return prev;
+
+        const libBookId = "b" + Date.now();
+
+        return [
+          {
+            id: libBookId,
+            catalog_id: catalogId,
+            owner: currentUser.id,
+            shelf_id: "",
+            status: "quero_ler",
+            rating: 0,
+            pages_read: 0,
+            month_read: null,
+
+            title: item.title,
+            author: item.author,
+            publisher: item.publisher,
+            cover_url: item.cover_url,
+            total_pages: item.total_pages || 0,
+            category: item.category,
+            genre: item.genre || "",
+            released: item.released,
+            release_year: item.release_year,
+            tropes: item.tropes || [],
+          },
+          ...prev,
+        ];
+      });
+    },
+    [catalogBooks, currentUser.id],
+  );
+
+  // ── Marathon operations (mantidas) ────────────────────────────
   const createMarathon = useCallback(
     (data) => {
       setMarathons((prev) => [
@@ -608,20 +715,10 @@ export function MockDataProvider({ children }) {
           total_pages_goal: Number(data.total_pages_goal || 0),
           creator_id: currentUser.id,
           book_ids: [],
-
           participants: [
-            {
-              user_id: currentUser.id,
-              trophies: 0,
-              book_progress: {},
-            },
-            {
-              user_id: "u2",
-              trophies: 0,
-              book_progress: {},
-            },
+            { user_id: currentUser.id, trophies: 0, book_progress: {} },
+            { user_id: "u2", trophies: 0, book_progress: {} },
           ],
-
           winner_id: null,
           winner: null,
         },
@@ -653,51 +750,26 @@ export function MockDataProvider({ children }) {
     );
   }, []);
 
-  /**
-   * ✅ Adiciona um livro à maratona (livro compartilhado).
-   * - sem duplicar por ID
-   * - e sem “duplicar por título+autor” (mesmo que outro usuário tenha outro ID igual)
-   */
-  const addBookToMarathon = useCallback(
-    (marathonId, bookId) => {
-      setMarathons((prev) =>
-        prev.map((m) => {
-          if (m.id !== marathonId) return m;
-          if (m.status !== "active") return m;
+  const addBookToMarathon = useCallback((marathonId, bookId) => {
+    setMarathons((prev) =>
+      prev.map((m) => {
+        if (m.id !== marathonId) return m;
+        if (m.status !== "active") return m;
 
-          // 1) evita duplicar por ID
-          const existsId = (m.book_ids || []).includes(bookId);
-          if (existsId) return m;
+        const exists = (m.book_ids || []).includes(bookId);
+        if (exists) return m;
 
-          const candidate = getBookById(books, bookId);
-          if (!candidate) return m;
-
-          // 2) evita duplicar por "chave" (title+author)
-          const candidateKey = normalizeBookKey(candidate);
-          const existingKeys = (m.book_ids || [])
-            .map((id) => getBookById(books, id))
-            .filter(Boolean)
-            .map(normalizeBookKey);
-
-          const existsByKey = existingKeys.includes(candidateKey);
-          if (existsByKey) return m;
-
-          return {
-            ...m,
-            book_ids: [...(m.book_ids || []), bookId],
-            participants: (m.participants || []).map((p) => ({
-              ...p,
-              book_progress: {
-                ...(p.book_progress || {}),
-                [bookId]: 0,
-              },
-            })),
-          };
-        }),
-      );
-    },
-    [books],
-  );
+        return {
+          ...m,
+          book_ids: [...(m.book_ids || []), bookId],
+          participants: (m.participants || []).map((p) => ({
+            ...p,
+            book_progress: { ...(p.book_progress || {}), [bookId]: 0 },
+          })),
+        };
+      }),
+    );
+  }, []);
 
   const removeBookFromMarathon = useCallback((marathonId, bookId) => {
     setMarathons((prev) =>
@@ -728,7 +800,7 @@ export function MockDataProvider({ children }) {
 
           const b = getBookById(books, bookId);
           const total = b?.total_pages || 0;
-          const clamped = clamp(Number(pagesRead || 0), 0, total);
+          const clampedPages = clamp(Number(pagesRead || 0), 0, total);
 
           return {
             ...m,
@@ -738,7 +810,7 @@ export function MockDataProvider({ children }) {
                 ...p,
                 book_progress: {
                   ...(p.book_progress || {}),
-                  [bookId]: clamped,
+                  [bookId]: clampedPages,
                 },
               };
             }),
@@ -771,17 +843,14 @@ export function MockDataProvider({ children }) {
     (uid) => books.filter((b) => b.owner === uid),
     [books],
   );
-
   const getUserShelves = useCallback(
     (uid) => shelves.filter((s) => s.owner === uid),
     [shelves],
   );
-
   const getUser = useCallback(
     (uid) => users.find((u) => u.id === uid),
     [users],
   );
-
   const getFriends = useCallback(
     () => users.filter((u) => u.id !== currentUser.id),
     [users, currentUser.id],
@@ -793,7 +862,7 @@ export function MockDataProvider({ children }) {
     const lendo = my.filter((b) => b.status === "lendo");
     const queroLer = my.filter((b) => b.status === "quero_ler");
     const totalPages = my.reduce((s, b) => s + (b.pages_read || 0), 0);
-    const rated = lidos.filter((b) => b.rating > 0);
+    const rated = lidos.filter((b) => (b.rating || 0) > 0);
     const avgRating =
       rated.length > 0
         ? (rated.reduce((s, b) => s + b.rating, 0) / rated.length).toFixed(1)
@@ -832,6 +901,13 @@ export function MockDataProvider({ children }) {
   const value = {
     currentUser,
     users,
+
+    // ✅ banco interno
+    catalogBooks,
+    createCatalogBook,
+    addCatalogBookToLibrary,
+
+    // ✅ meu acervo (compat)
     books,
     shelves,
     marathons,
@@ -849,7 +925,6 @@ export function MockDataProvider({ children }) {
 
     createMarathon,
     finishMarathon,
-
     addBookToMarathon,
     removeBookFromMarathon,
     updateMarathonBookProgress,
